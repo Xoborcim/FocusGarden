@@ -1,0 +1,87 @@
+import SwiftData
+import SwiftUI
+import UIKit
+
+@main
+struct FocusGardenApp: App {
+    let container: ModelContainer
+    @State private var services: AppServices
+
+    init() {
+        Self.configureAppearance()
+        let container = PersistenceController.makeContainer()
+        self.container = container
+        _services = State(initialValue: AppServices(container: container))
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            RootView()
+                .environment(services)
+                .modelContainer(container)
+                .preferredColorScheme(.dark)
+                .onAppear { services.bootstrap() }
+        }
+    }
+
+    private static func configureAppearance() {
+        UILabel.appearance().shadowColor = .clear
+        UILabel.appearance().shadowOffset = .zero
+    }
+}
+
+struct RootView: View {
+    @Environment(AppServices.self) private var services
+    @Query private var appState: [AppStateRecord]
+
+    var body: some View {
+        let onboarded = appState.first?.hasCompletedOnboarding ?? services.hasCompletedOnboarding
+        Group {
+            if onboarded {
+                RootTabView()
+            } else {
+                OnboardingView()
+            }
+        }
+        .background(FGTheme.background.ignoresSafeArea())
+        .fullScreenCover(isPresented: sessionPresented) {
+            if let task = services.activeSessionTask {
+                FocusSessionView(task: task)
+            }
+        }
+    }
+
+    private var sessionPresented: Binding<Bool> {
+        Binding(
+            get: { services.activeSessionTaskID != nil },
+            set: { presented in
+                if !presented {
+                    services.endFocusSession(clearStart: false)
+                }
+            }
+        )
+    }
+}
+
+struct RootTabView: View {
+    @State private var selectedTab = 0
+
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            ScheduleView()
+                .tabItem { Label("Schedule", systemImage: "calendar") }
+                .tag(0)
+            TasksView()
+                .tabItem { Label("Tasks", systemImage: "checklist") }
+                .tag(1)
+            CoursesView()
+                .tabItem { Label("Courses", systemImage: "books.vertical.fill") }
+                .tag(2)
+            SettingsView()
+                .tabItem { Label("Settings", systemImage: "square.and.arrow.down") }
+                .tag(3)
+        }
+        .tint(FGTheme.green)
+        .preferredColorScheme(.dark)
+    }
+}
