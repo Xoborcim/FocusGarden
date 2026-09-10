@@ -222,8 +222,12 @@ struct ScheduleManager {
     }
 
     private func timedAssessments(_ assessments: [Assessment], now: Date) -> [ExpandedClassBlock] {
-        assessments.compactMap { assessment in
-            guard !assessment.isAllDay, assessment.end > now, assessment.end > assessment.start else { return nil }
+        let calendar = configuration.calendar()
+        let todayStart = calendar.startOfDay(for: now)
+        return assessments.compactMap { assessment in
+            guard !assessment.isAllDay, assessment.end > assessment.start else { return nil }
+            let dayStart = calendar.startOfDay(for: assessment.start)
+            guard dayStart >= todayStart else { return nil }
             return ExpandedClassBlock(
                 start: assessment.start,
                 end: assessment.end,

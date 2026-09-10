@@ -343,6 +343,44 @@ final class AutoSchedulingEngineTests: XCTestCase {
         XCTAssertEqual(after?.start, afternoon.end.addingTimeInterval(45 * 60))
     }
 
+    func testCommuteRespectedWhenNowIsImmediatelyAfterLastClassToday() {
+        // Tuesday Sept 8, 2026. Class was 13:00 - 15:00. Now is 15:05 (5 minutes after class ended).
+        let now = SchedulingFixtures.date(2026, 9, 8, 15, 5)
+        var config = SchedulingFixtures.config()
+        config.commuteMinutesAfterLastClass = 45 // 45-minute commute
+        config.allowBeforeFirstClass = false
+        config.allowBetweenClasses = false
+
+        let template = RecurringClassTemplate(
+            dayOfWeek: 3, // Tuesday
+            startTime: 13 * 3600, // 13:00
+            duration: 2 * 3600,   // 2 hours -> ends 15:00
+            cognitiveWeight: 1.5,
+            courseCode: "CSC207",
+            meetingType: "LEC",
+            validFrom: SchedulingFixtures.date(2026, 9, 1, 0, 0),
+            validUntil: SchedulingFixtures.date(2026, 12, 1, 0, 0)
+        )
+
+        let expanded = engine.expandClassBlocks(templates: [template], now: now, configuration: config)
+        XCTAssertFalse(expanded.isEmpty, "Today's completed classes must be retained so commute time is known")
+
+        let task = SchedulingFixtures.task(title: "Problem Set", priority: 2, minutes: 60, code: "CSC207")
+        let plan = engine.generate(
+            request: SchedulingRequest(
+                now: now,
+                configuration: config,
+                tasks: [task],
+                classBlocks: expanded
+            )
+        )
+
+        XCTAssertEqual(plan.placements.count, 1)
+        let placement = plan.placements[0]
+        let expectedEarliestStart = SchedulingFixtures.date(2026, 9, 8, 15, 45) // 15:00 + 45m commute
+        XCTAssertGreaterThanOrEqual(placement.start, expectedEarliestStart, "Study placement must respect 45m commute time after last lecture")
+    }
+
     func testNoClassDayUsesClockWindowOnly() {
         let now = SchedulingFixtures.date(2026, 9, 8, 8, 0)
         var config = SchedulingFixtures.config()

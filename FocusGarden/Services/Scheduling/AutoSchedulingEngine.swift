@@ -307,7 +307,6 @@ struct AutoSchedulingEngine: Sendable {
             for template in templates where template.dayOfWeek == weekday {
                 let start = day.addingTimeInterval(template.startTime)
                 let end = start.addingTimeInterval(template.duration)
-                if end <= now { continue }
                 let dayStart = calendar.startOfDay(for: day)
                 if dayStart < calendar.startOfDay(for: template.validFrom) { continue }
                 if dayStart > calendar.startOfDay(for: template.validUntil) { continue }
