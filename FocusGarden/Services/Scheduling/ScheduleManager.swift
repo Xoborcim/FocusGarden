@@ -134,6 +134,10 @@ struct ScheduleManager {
                 task.scheduledStart = nil
                 task.scheduledEnd = nil
                 task.scheduleReason = reason
+            } else {
+                task.scheduledStart = nil
+                task.scheduledEnd = nil
+                task.scheduleReason = "Dropped from schedule"
             }
         }
 

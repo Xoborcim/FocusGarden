@@ -370,7 +370,7 @@ struct ScheduleView: View {
 
         for block in classBlocks where block.dayOfWeek == weekday && block.isActive(on: day, calendar: calendar) {
             let start = dayStart.addingTimeInterval(block.startTime)
-            let end = start.addingTimeInterval(max(15 * 60, block.duration))
+            let end = start.addingTimeInterval(block.duration)
             events.append(
                 CalendarEvent(
                     id: block.id,
@@ -394,7 +394,7 @@ struct ScheduleView: View {
                 CalendarEvent(
                     id: assessment.id,
                     start: assessment.start,
-                    end: max(assessment.end, assessment.start.addingTimeInterval(30 * 60)),
+                    end: assessment.end,
                     title: assessment.title,
                     subtitle: assessment.assessmentKind.displayName,
                     kind: kind,
@@ -420,7 +420,7 @@ struct ScheduleView: View {
                 CalendarEvent(
                     id: task.id,
                     start: start,
-                    end: max(end, start.addingTimeInterval(15 * 60)),
+                    end: end,
                     title: task.title,
                     subtitle: task.scheduleReason,
                     kind: kind,

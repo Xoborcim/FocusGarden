@@ -6,16 +6,16 @@ final class StudyPlannerTests: XCTestCase {
     let config = SchedulingFixtures.config()
 
     func testWeeklyStudyScalesWithClassTime() {
-        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 120), 180)
+        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 120), 144)
         XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 0), 0)
-        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 400), 600)
+        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 400), 480)
     }
 
-    func testWeeklyStudyIsStrictlyOnePointFiveTimesLectureHours() {
-        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 60), 90)
-        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 120), 180)
-        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 180), 270)
-        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 240), 360)
+    func testWeeklyStudyIsStrictlyOnePointTwoTimesLectureHours() {
+        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 60), 72)
+        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 120), 144)
+        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 180), 216)
+        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 240), 288)
     }
 
     func testPlanCreatesWeeklyStudyAndSpecialSlots() {
@@ -49,7 +49,7 @@ final class StudyPlannerTests: XCTestCase {
         )
 
         XCTAssertFalse(items.filter { $0.kind == .study }.isEmpty)
-        XCTAssertEqual(items.filter { $0.kind == .study }.map(\.minutes).reduce(0, +) >= 180, true)
+        XCTAssertEqual(items.filter { $0.kind == .study }.map(\.minutes).reduce(0, +) >= 144, true)
 
         let prep = items.filter { $0.kind == .testPrep }
         XCTAssertEqual(prep.map(\.minutes).reduce(0, +), 180)
@@ -159,7 +159,7 @@ final class StudyPlannerTests: XCTestCase {
     func testWeeklyStudySplitIntoOneHourChunks() {
         let now = SchedulingFixtures.date(2026, 9, 8, 7, 0)
         let config = SchedulingFixtures.config(horizon: 7)
-        // 180 class minutes -> 270 study minutes (4.5 hours)
+        // 180 class minutes -> 216 study minutes (3.6 hours)
         let items = planner.plan(
             courses: [CourseWorkload(code: "MAT223", weeklyClassMinutes: 180)],
             assessments: [],
@@ -171,9 +171,9 @@ final class StudyPlannerTests: XCTestCase {
         XCTAssertFalse(studyItems.isEmpty)
         // Verify all chunks are at most 60 minutes (1 hour)
         XCTAssertTrue(studyItems.allSatisfy { $0.minutes <= 60 })
-        // Expected chunks for each week: 60, 60, 60, 60, 30 = 270 minutes
-        let week1Chunks = Array(studyItems.prefix(5)).map(\.minutes)
-        XCTAssertEqual(week1Chunks, [60, 60, 60, 60, 30])
-        XCTAssertEqual(week1Chunks.reduce(0, +), 270)
+        // Expected chunks for each week: 60, 60, 60, 36 = 216 minutes
+        let week1Chunks = Array(studyItems.prefix(4)).map(\.minutes)
+        XCTAssertEqual(week1Chunks, [60, 60, 60, 36])
+        XCTAssertEqual(week1Chunks.reduce(0, +), 216)
     }
 }

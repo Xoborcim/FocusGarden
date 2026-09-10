@@ -77,7 +77,7 @@ struct StudyPlanner: Sendable {
 
     func weeklyStudyMinutes(classMinutes: Int, difficulty: Int = 3) -> Int {
         guard classMinutes > 0 else { return 0 }
-        return Int((Double(classMinutes) * 1.5).rounded())
+        return Int((Double(classMinutes) * 1.2).rounded())
     }
 
     func difficultyFactor(_ difficulty: Int) -> Double {

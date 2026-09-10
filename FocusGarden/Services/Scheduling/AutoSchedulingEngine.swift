@@ -194,10 +194,18 @@ struct AutoSchedulingEngine: Sendable {
             }
 
             if !placedAll {
+                // Atomic, clean rollback of any partial placements for this task BEFORE swap attempt
+                placements.removeSubrange(snapshotPlacementsCount..<placements.count)
+                occupied.removeSubrange(snapshotOccupiedCount..<occupied.count)
+                dailyNonReviewCounts = snapshotDailyCounts
+                dailyCourseBlockCounts = snapshotDailyCourseCounts
+                dailyStudyMinutes = snapshotDailyStudyMinutes
+                lastEndByTask[task.id] = snapshotLastEnd
+
                 // Cooperative Swap: If a high-priority task (>= 3) is blocked, attempt to unseat a lower-priority routine study block
                 var swapped = false
                 if task.priority >= 3 {
-                    for pIdx in (0..<snapshotPlacementsCount).reversed() {
+                    for pIdx in (0..<placements.count).reversed() {
                         let candidatePlacement = placements[pIdx]
                         guard let candidateTask = sortedTasks.first(where: { $0.id == candidatePlacement.taskID }),
                               candidateTask.priority < task.priority,
@@ -243,6 +251,14 @@ struct AutoSchedulingEngine: Sendable {
                             dailyStudyMinutes: snapshotDailyStudyMinutes,
                             lastEnd: snapshotLastEnd
                         ) {
+                            // Track the unseated task as unscheduled so its stale times get cleared
+                            unscheduled.append(
+                                UnscheduledWork(
+                                    taskID: candidateTask.id,
+                                    title: candidateTask.title,
+                                    reason: "Unseated by higher priority task."
+                                )
+                            )
                             placements.remove(at: pIdx)
                             occupied = testOccupied
                             let end = testBest.start.addingTimeInterval(TimeInterval(task.remainingMinutes * 60))
@@ -277,13 +293,16 @@ struct AutoSchedulingEngine: Sendable {
                 }
 
                 if !swapped {
-                    // Atomic, clean rollback of any partial placements for this task
-                    placements.removeSubrange(snapshotPlacementsCount..<placements.count)
-                    occupied.removeSubrange(snapshotOccupiedCount..<occupied.count)
-                    dailyNonReviewCounts = snapshotDailyCounts
-                    dailyCourseBlockCounts = snapshotDailyCourseCounts
-                    dailyStudyMinutes = snapshotDailyStudyMinutes
-                    lastEndByTask[task.id] = snapshotLastEnd
+                    // Task could not be placed even with cooperative swap
+                    if !unscheduled.contains(where: { $0.taskID == task.id }) {
+                        unscheduled.append(
+                            UnscheduledWork(
+                                taskID: task.id,
+                                title: task.title,
+                                reason: unscheduledReason(task: task, minutes: task.remainingMinutes, candidatesEmpty: true, config: config)
+                            )
+                        )
+                    }
                 }
             }
         }

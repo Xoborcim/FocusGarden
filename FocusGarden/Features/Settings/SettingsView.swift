@@ -78,7 +78,7 @@ struct SettingsView: View {
                         .foregroundStyle(FGTheme.muted)
                 }
                 Section("STUDY PLAN") {
-                    Text("Only the current term is scheduled. Weekly study is 1.5× that term’s class time. Tests and homework get extra blocks before the due date.")
+                    Text("Only the current term is scheduled. Weekly study is 1.2× that term’s class time. Tests and homework get extra blocks before the due date.")
                         .font(FGTheme.mono(.caption))
                         .foregroundStyle(FGTheme.muted)
                     Stepper(

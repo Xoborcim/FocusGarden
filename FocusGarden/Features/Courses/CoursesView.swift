@@ -222,7 +222,7 @@ struct CourseDetailView: View {
         switch Course.clampedDifficulty(course.difficulty) {
         case 1: return "Fewer study blocks so the week stays flexible."
         case 2: return "A bit less weekly study than normal."
-        case 3: return "Standard weekly study (1.5× class time)."
+        case 3: return "Standard weekly study (1.2× class time)."
         case 4: return "More weekly study; prep also scales up."
         default: return "Heaviest load — more sessions and longer prep."
         }
