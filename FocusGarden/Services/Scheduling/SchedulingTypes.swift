@@ -36,6 +36,13 @@ struct PlannableTask: Equatable, Sendable, Identifiable {
     var courseCode: String
     var earliestStart: Date? = nil
     var latestEnd: Date? = nil
+    var cognitiveMode: String = CognitiveMode.activeRecall.rawValue
+    var masteryRating: Int = 2
+    var errorNotes: String = ""
+
+    var mode: CognitiveMode {
+        CognitiveMode(rawValue: cognitiveMode) ?? .activeRecall
+    }
 
     var isReview: Bool {
         isSpacedReview

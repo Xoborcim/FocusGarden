@@ -330,6 +330,7 @@ struct AutoSchedulingEngine: Sendable {
         let leftDeadline = lhs.deadline ?? .distantFuture
         let rightDeadline = rhs.deadline ?? .distantFuture
         if leftDeadline != rightDeadline { return leftDeadline < rightDeadline }
+        if lhs.masteryRating != rhs.masteryRating { return lhs.masteryRating < rhs.masteryRating }
         if lhs.isReview != rhs.isReview { return !lhs.isReview && rhs.isReview }
         return lhs.id.uuidString < rhs.id.uuidString
     }
@@ -704,6 +705,15 @@ struct AutoSchedulingEngine: Sendable {
             }
         }
 
+        // Spaced Repetition Mastery Multiplier (Ebbinghaus / SuperMemo quality feedback):
+        // If student struggled (Quality 1), schedule an early recovery session.
+        // If mastered (Quality 3), relax urgency so harder subjects take priority.
+        if task.masteryRating == 1 {
+            score += 24.0
+        } else if task.masteryRating == 3 {
+            score -= 14.0
+        }
+
         // Anti-clustering / Spaced distribution:
         // Heavily penalize scheduling multiple blocks of the same course on the same day.
         let courseCode = task.courseCode.uppercased()
@@ -715,8 +725,9 @@ struct AutoSchedulingEngine: Sendable {
             }
         }
 
-        // Smart Grouping & Subject Affinity:
-        // Clump similar courses together to minimize cognitive context switching!
+        // Smart Grouping & Interleaved Practice (Rohrer et al., 2020):
+        // Clump related fields together, but interleave different courses on the same day
+        // to force cognitive strategy selection!
         let cluster = task.subjectCluster
         if cluster != .general {
             // Affinity with classes of the same or related field on this day
@@ -731,15 +742,16 @@ struct AutoSchedulingEngine: Sendable {
                 }
             }
 
-            // Affinity with other study blocks of similar/related courses today
+            // Interleaved Practice Bonus:
+            // Reward studying a complementary course of the same/related cluster on this day!
             if let countsToday = dailyCourseBlockCounts[day] {
                 for (otherCode, count) in countsToday where count > 0 && otherCode != courseCode {
                     let otherCluster = SubjectCluster.cluster(for: otherCode)
                     if otherCluster == cluster {
-                        score += 10.0
+                        score += 12.0 // Interleaving bonus within same field!
                         break
                     } else if otherCluster.isRelated(to: cluster) {
-                        score += 5.0
+                        score += 6.0  // Interleaving bonus within related field!
                         break
                     }
                 }

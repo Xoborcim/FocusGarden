@@ -154,4 +154,33 @@ final class StudyPlannerTests: XCTestCase {
         )
         XCTAssertTrue(items.isEmpty)
     }
+
+    func testCognitiveModesAssignedToExamPrepAndDifficultWeeklyStudy() {
+        let now = SchedulingFixtures.date(2026, 9, 8, 7, 0)
+        let examStart = SchedulingFixtures.date(2026, 9, 25, 14, 0)
+        let items = planner.plan(
+            courses: [CourseWorkload(code: "MAT223", weeklyClassMinutes: 180, difficulty: 4)],
+            assessments: [
+                AssessmentEvent(
+                    fingerprint: "test|MAT223|final",
+                    title: "MAT223 Final Exam",
+                    kind: .test,
+                    start: examStart,
+                    end: examStart.addingTimeInterval(3 * 3600),
+                    isAllDay: false,
+                    courseCode: "MAT223"
+                )
+            ],
+            now: now,
+            configuration: SchedulingFixtures.config(horizon: 21)
+        )
+
+        let prep = items.filter { $0.kind == .testPrep }
+        XCTAssertGreaterThanOrEqual(prep.count, 2)
+        XCTAssertEqual(prep.first?.cognitiveMode, .workedExample, "First exam prep should be Worked Example mode")
+        XCTAssertEqual(prep.last?.cognitiveMode, .errorReview, "Final exam prep should be Error Review mode")
+
+        let hardWeekly = items.filter { $0.kind == .study && $0.courseCode == "MAT223" }
+        XCTAssertEqual(hardWeekly.first?.cognitiveMode, .workedExample, "First chunk of difficulty 4+ course should be Worked Example")
+    }
 }

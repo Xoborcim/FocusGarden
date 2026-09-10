@@ -735,6 +735,55 @@ final class AutoSchedulingEngineTests: XCTestCase {
         let start2 = plan.placements[1].start
         XCTAssertFalse(calendar.isDate(start1, inSameDayAs: start2), "Exam prep sessions should be spaced across distinct days")
     }
+
+    func testStruggledTaskScheduledWithHighUrgency() {
+        let now = SchedulingFixtures.date(2026, 9, 8, 7, 0)
+        let config = SchedulingFixtures.config(horizon: 3)
+
+        // Hard task (mastery 1) vs Mastered task (mastery 3), both priority 2
+        let hardTask = SchedulingFixtures.task(title: "Struggled Topic", priority: 2, minutes: 60, code: "CSC207", mastery: 1)
+        let masteredTask = SchedulingFixtures.task(title: "Mastered Topic", priority: 2, minutes: 60, code: "MAT137", mastery: 3)
+
+        let plan = engine.generate(
+            request: SchedulingRequest(
+                now: now,
+                configuration: config,
+                tasks: [masteredTask, hardTask],
+                classBlocks: []
+            )
+        )
+
+        XCTAssertEqual(plan.placements.count, 2)
+        let hardPlacement = plan.placements.first { $0.taskID == hardTask.id }!
+        let masteredPlacement = plan.placements.first { $0.taskID == masteredTask.id }!
+        XCTAssertLessThan(hardPlacement.start, masteredPlacement.start, "Struggled task should be scheduled before mastered task due to mastery spacing multiplier")
+    }
+
+    func testInterleavedPracticeClumpsComplementaryCoursesOnSameDay() {
+        let now = SchedulingFixtures.date(2026, 9, 8, 7, 0)
+        let day = SchedulingFixtures.date(2026, 9, 8, 0, 0)
+        let csClass = SchedulingFixtures.classBlock(day: day, startHour: 10, durationHours: 2, code: "CSC108")
+
+        // Two complementary courses: CSC207 (CS) and MAT137 (Math, related to CS)
+        let csTask = SchedulingFixtures.task(title: "Data Structures", priority: 2, minutes: 60, code: "CSC207")
+        let mathTask = SchedulingFixtures.task(title: "Calculus", priority: 2, minutes: 60, code: "MAT137")
+
+        let plan = engine.generate(
+            request: SchedulingRequest(
+                now: now,
+                configuration: SchedulingFixtures.config(horizon: 5),
+                tasks: [csTask, mathTask],
+                classBlocks: [csClass]
+            )
+        )
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = SchedulingFixtures.toronto
+        let csPlacement = plan.placements.first { $0.taskID == csTask.id }!
+        let mathPlacement = plan.placements.first { $0.taskID == mathTask.id }!
+        XCTAssertTrue(calendar.isDate(csPlacement.start, inSameDayAs: day))
+        XCTAssertTrue(calendar.isDate(mathPlacement.start, inSameDayAs: day), "Interleaving bonus should encourage complementary study on the same day")
+    }
 }
 
 struct SeededGenerator: RandomNumberGenerator {

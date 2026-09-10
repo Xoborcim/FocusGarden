@@ -84,6 +84,10 @@ struct FocusSessionView: View {
     // Modals
     @State private var showingIntervalPicker = false
 
+    // Cognitive feedback & mastery
+    @State private var selectedMastery: MasteryRating? = nil
+    @State private var errorNoteInput: String = ""
+
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -139,6 +143,8 @@ struct FocusSessionView: View {
         )
         breakDurationMinutes = max(1, services.configuration.timerBreakMinutes)
         sprintStartedAt = task.sessionStartedAt ?? services.clock.now
+        selectedMastery = task.masteryRating
+        errorNoteInput = task.errorNotes
     }
 
     // MARK: - Ambient Glow
@@ -263,6 +269,28 @@ struct FocusSessionView: View {
                         .font(FGTheme.mono(.caption2))
                         .foregroundStyle(FGTheme.muted)
                 }
+
+                // Cognitive Mode & Evidence-Based Guidance Prompt
+                VStack(spacing: 3) {
+                    HStack(spacing: 5) {
+                        Image(systemName: task.cognitiveMode.badgeIcon)
+                            .font(.system(size: 9, weight: .bold))
+                        Text(task.cognitiveMode.title.uppercased())
+                            .font(FGTheme.mono(.caption2, weight: .bold))
+                    }
+                    .foregroundStyle(task.cognitiveMode == .activeRecall ? FGTheme.green : (task.cognitiveMode == .errorReview ? FGTheme.danger : FGTheme.amber))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2.5)
+                    .background(FGTheme.surface)
+                    .overlay(Rectangle().stroke((task.cognitiveMode == .activeRecall ? FGTheme.green : (task.cognitiveMode == .errorReview ? FGTheme.danger : FGTheme.amber)).opacity(0.4), lineWidth: 1))
+
+                    Text(task.cognitiveMode.prompt)
+                        .font(FGTheme.mono(.caption2))
+                        .foregroundStyle(FGTheme.muted)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+                }
+                .padding(.top, 2)
             }
             .padding(.horizontal, 12)
 
@@ -469,6 +497,13 @@ struct FocusSessionView: View {
             .frame(maxWidth: .infinity)
             .background(FGTheme.surface)
             .overlay(Rectangle().stroke(FGTheme.green.opacity(0.5), lineWidth: 1))
+
+            MasteryFeedbackCard(
+                task: task,
+                services: services,
+                selectedMastery: $selectedMastery,
+                errorNoteInput: $errorNoteInput
+            )
 
             if let next = nextScheduledTaskToday {
                 let gap = max(0, Int(next.scheduledStart!.timeIntervalSince(now) / 60))
@@ -999,6 +1034,85 @@ private struct TimerIntervalConfigSheet: View {
             .padding(.vertical, 8)
             .background(selected ? FGTheme.green : FGTheme.surface)
             .overlay(Rectangle().stroke(FGTheme.green.opacity(0.5), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Mastery Feedback Card
+
+private struct MasteryFeedbackCard: View {
+    let task: FocusTask
+    let services: AppServices
+    @Binding var selectedMastery: MasteryRating?
+    @Binding var errorNoteInput: String
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text("HOW DID THIS SESSION FEEL?")
+                .font(FGTheme.mono(.caption2, weight: .bold))
+                .foregroundStyle(FGTheme.muted)
+
+            HStack(spacing: 8) {
+                ForEach(MasteryRating.allCases) { rating in
+                    masteryButton(for: rating)
+                }
+            }
+
+            if let selectedMastery {
+                Text(selectedMastery.description)
+                    .font(FGTheme.mono(.caption2))
+                    .foregroundStyle(ratingColor(for: selectedMastery))
+                    .multilineTextAlignment(.center)
+            }
+
+            // Error Log / Key Blind Spot Note
+            HStack(spacing: 6) {
+                Image(systemName: "pencil.line")
+                    .foregroundStyle(FGTheme.muted)
+                    .font(.system(size: 10))
+                TextField("Error log / key blind spot note (optional)...", text: $errorNoteInput)
+                    .font(FGTheme.mono(.caption2))
+                    .foregroundStyle(.white)
+                    .onSubmit {
+                        services.recordSessionFeedback(for: task, rating: selectedMastery ?? .good, errorNotes: errorNoteInput)
+                    }
+            }
+            .padding(6)
+            .background(FGTheme.surface)
+            .overlay(Rectangle().stroke(FGTheme.muted.opacity(0.3), lineWidth: 1))
+        }
+        .padding(12)
+        .background(FGTheme.surface)
+        .overlay(Rectangle().stroke(FGTheme.green.opacity(0.25), lineWidth: 1))
+    }
+
+    private func ratingColor(for rating: MasteryRating) -> Color {
+        switch rating {
+        case .hard: return FGTheme.danger
+        case .good: return FGTheme.amber
+        case .mastered: return FGTheme.green
+        }
+    }
+
+    private func masteryButton(for rating: MasteryRating) -> some View {
+        let isSelected = selectedMastery == rating
+        let color = ratingColor(for: rating)
+        return Button {
+            selectedMastery = rating
+            services.recordSessionFeedback(for: task, rating: rating, errorNotes: errorNoteInput)
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: rating.icon)
+                    .font(.system(size: 13))
+                Text(rating.label.uppercased())
+                    .font(FGTheme.mono(.caption2, weight: .bold))
+            }
+            .foregroundStyle(isSelected ? FGTheme.ink : color)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(isSelected ? color : FGTheme.surface)
+            .overlay(Rectangle().stroke(color.opacity(0.6), lineWidth: 1))
         }
         .buttonStyle(.plain)
     }

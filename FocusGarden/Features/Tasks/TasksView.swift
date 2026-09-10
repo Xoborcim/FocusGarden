@@ -619,6 +619,33 @@ private struct TaskCard: View {
                     .background(task.subjectCluster.accentColor.opacity(0.12))
                     .overlay(Rectangle().stroke(task.subjectCluster.accentColor.opacity(0.35), lineWidth: 1))
 
+                    // Cognitive Mode Badge
+                    HStack(spacing: 3) {
+                        Image(systemName: task.cognitiveMode.badgeIcon)
+                            .font(.system(size: 7, weight: .bold))
+                        Text(task.cognitiveMode.shortTag)
+                            .font(FGTheme.mono(.caption2, weight: .bold))
+                    }
+                    .foregroundStyle(task.cognitiveMode == .activeRecall ? FGTheme.green : (task.cognitiveMode == .errorReview ? FGTheme.danger : FGTheme.amber))
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1.5)
+                    .background(FGTheme.surface)
+                    .overlay(Rectangle().stroke((task.cognitiveMode == .activeRecall ? FGTheme.green : (task.cognitiveMode == .errorReview ? FGTheme.danger : FGTheme.amber)).opacity(0.35), lineWidth: 1))
+
+                    if task.masteryRating == .hard {
+                        HStack(spacing: 2) {
+                            Image(systemName: "flame.fill")
+                                .font(.system(size: 7))
+                            Text("REVIEW")
+                                .font(FGTheme.mono(.caption2, weight: .bold))
+                        }
+                        .foregroundStyle(FGTheme.danger)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1.5)
+                        .background(FGTheme.danger.opacity(0.12))
+                        .overlay(Rectangle().stroke(FGTheme.danger.opacity(0.4), lineWidth: 1))
+                    }
+
                     if task.isSoftLocked {
                         Text("· PINNED")
                             .font(FGTheme.mono(.caption2, weight: .bold))

@@ -24,6 +24,9 @@ final class FocusTask {
     var generationKey: String = ""
     var linkedAssessmentFingerprint: String = ""
     var sessionStartedAt: Date?
+    var cognitiveModeRaw: String = CognitiveMode.activeRecall.rawValue
+    var masteryRatingRaw: Int = 2
+    var errorNotes: String = ""
 
     init(
         title: String,
@@ -34,7 +37,10 @@ final class FocusTask {
         deadline: Date? = nil,
         createdAt: Date = Date(),
         generationKey: String = "",
-        linkedAssessmentFingerprint: String = ""
+        linkedAssessmentFingerprint: String = "",
+        cognitiveMode: CognitiveMode = .activeRecall,
+        masteryRating: MasteryRating = .good,
+        errorNotes: String = ""
     ) {
         self.id = UUID()
         self.title = title
@@ -48,6 +54,19 @@ final class FocusTask {
         self.generationKey = generationKey
         self.linkedAssessmentFingerprint = linkedAssessmentFingerprint
         self.intensity = Self.defaultIntensity(kind: taskKind, minutes: estimatedMinutes)
+        self.cognitiveModeRaw = cognitiveMode.rawValue
+        self.masteryRatingRaw = masteryRating.rawValue
+        self.errorNotes = errorNotes
+    }
+
+    var cognitiveMode: CognitiveMode {
+        get { CognitiveMode(rawValue: cognitiveModeRaw) ?? .activeRecall }
+        set { cognitiveModeRaw = newValue.rawValue }
+    }
+
+    var masteryRating: MasteryRating {
+        get { MasteryRating(rawValue: masteryRatingRaw) ?? .good }
+        set { masteryRatingRaw = newValue.rawValue }
     }
 
     var kind: TaskKind {

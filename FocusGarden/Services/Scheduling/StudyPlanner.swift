@@ -31,6 +31,7 @@ struct GeneratedStudyItem: Equatable, Sendable, Identifiable {
     var assessmentFingerprint: String
     var earliestStart: Date? = nil
     var latestEnd: Date? = nil
+    var cognitiveMode: CognitiveMode = .activeRecall
 }
 
 struct StudyPlanner: Sendable {
@@ -139,6 +140,7 @@ struct StudyPlanner: Sendable {
                 continue
             }
             for (index, minutes) in chunks.enumerated() {
+                let mode: CognitiveMode = (course.difficulty >= 4 && index == 0) ? .workedExample : .activeRecall
                 items.append(
                     GeneratedStudyItem(
                         generationKey: "study|\(course.code.uppercased())|\(Int(weekStart.timeIntervalSince1970))|\(index)",
@@ -150,7 +152,8 @@ struct StudyPlanner: Sendable {
                         courseCode: course.code,
                         assessmentFingerprint: "",
                         earliestStart: earliest,
-                        latestEnd: weekEnd
+                        latestEnd: weekEnd,
+                        cognitiveMode: mode
                     )
                 )
             }
@@ -206,6 +209,21 @@ struct StudyPlanner: Sendable {
                 bucketEnd = due
             }
 
+            let mode: CognitiveMode
+            if assessment.kind == .test {
+                if chunkCount >= 3 {
+                    if index == 0 { mode = .workedExample }
+                    else if index == chunkCount - 1 { mode = .errorReview }
+                    else { mode = .activeRecall }
+                } else if chunkCount == 2 {
+                    mode = index == 0 ? .workedExample : .activeRecall
+                } else {
+                    mode = .activeRecall
+                }
+            } else {
+                mode = index == 0 ? .workedExample : .activeRecall
+            }
+
             return GeneratedStudyItem(
                 generationKey: "\(kind.rawValue)|\(assessment.fingerprint)|\(index)",
                 title: "\(prefix) \(title)",
@@ -216,7 +234,8 @@ struct StudyPlanner: Sendable {
                 courseCode: assessment.courseCode,
                 assessmentFingerprint: assessment.fingerprint,
                 earliestStart: bucketStart,
-                latestEnd: bucketEnd
+                latestEnd: bucketEnd,
+                cognitiveMode: mode
             )
         }
     }

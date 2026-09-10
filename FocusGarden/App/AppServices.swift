@@ -400,6 +400,26 @@ final class AppServices {
         Task { await refreshReminders() }
     }
 
+    func recordSessionFeedback(for task: FocusTask, rating: MasteryRating, errorNotes: String = "") {
+        task.masteryRating = rating
+        task.errorNotes = errorNotes
+        if rating == .hard {
+            task.cognitiveMode = .errorReview
+            let courseCode = task.linkedCourse?.code ?? ""
+            if !courseCode.isEmpty,
+               let otherTasks = try? context.fetch(FetchDescriptor<FocusTask>()),
+               let nextTask = otherTasks.first(where: {
+                   !$0.isCompleted && $0.id != task.id && ($0.linkedCourse?.code ?? "").caseInsensitiveCompare(courseCode) == .orderedSame
+               }) {
+                nextTask.cognitiveMode = .errorReview
+                nextTask.masteryRating = .hard
+            }
+        }
+        try? context.save()
+        regenerate()
+        refreshWidget()
+    }
+
     func addTask(
         title: String,
         course: Course? = nil,

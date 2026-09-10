@@ -91,7 +91,10 @@ struct ScheduleManager {
                 intensity: task.intensity,
                 courseCode: task.linkedCourse?.code ?? "",
                 earliestStart: bounds?.earliest,
-                latestEnd: bounds?.latest
+                latestEnd: bounds?.latest,
+                cognitiveMode: task.cognitiveModeRaw,
+                masteryRating: task.masteryRatingRaw,
+                errorNotes: task.errorNotes
             )
         }
 
@@ -256,6 +259,11 @@ struct ScheduleManager {
                     task.deadline = item.deadline
                     task.linkedCourse = course
                     task.linkedAssessmentFingerprint = item.assessmentFingerprint
+                    if task.masteryRating == .hard {
+                        task.cognitiveMode = .errorReview
+                    } else if task.cognitiveModeRaw == CognitiveMode.activeRecall.rawValue {
+                        task.cognitiveMode = item.cognitiveMode
+                    }
                 }
                 result.append(task)
             } else {
@@ -267,7 +275,8 @@ struct ScheduleManager {
                     linkedCourse: course,
                     deadline: item.deadline,
                     generationKey: item.generationKey,
-                    linkedAssessmentFingerprint: item.assessmentFingerprint
+                    linkedAssessmentFingerprint: item.assessmentFingerprint,
+                    cognitiveMode: item.cognitiveMode
                 )
                 context.insert(task)
                 result.append(task)

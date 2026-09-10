@@ -75,3 +75,78 @@ final class AppStateRecord {
         self.chronotypeRaw = Chronotype.balanced.rawValue
     }
 }
+
+public enum CognitiveMode: String, CaseIterable, Identifiable, Codable, Sendable {
+    case workedExample = "workedExample"
+    case activeRecall = "activeRecall"
+    case errorReview = "errorReview"
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .workedExample: return "Worked Example"
+        case .activeRecall: return "Active Recall"
+        case .errorReview: return "Error Log Review"
+        }
+    }
+
+    public var shortTag: String {
+        switch self {
+        case .workedExample: return "WORKED EX"
+        case .activeRecall: return "RECALL"
+        case .errorReview: return "ERROR LOG"
+        }
+    }
+
+    public var badgeIcon: String {
+        switch self {
+        case .workedExample: return "book.closed.fill"
+        case .activeRecall: return "brain.head.profile"
+        case .errorReview: return "arrow.triangle.2.circlepath.circle.fill"
+        }
+    }
+
+    public var prompt: String {
+        switch self {
+        case .workedExample:
+            return "Deconstruct reference solutions first, then reproduce them without looking."
+        case .activeRecall:
+            return "Close your notes. Solve practice problems and recall concepts purely from memory."
+        case .errorReview:
+            return "Target past homework & exam mistakes to permanently eliminate blind spots."
+        }
+    }
+}
+
+public enum MasteryRating: Int, CaseIterable, Identifiable, Codable, Sendable {
+    case hard = 1      // Quality 1: Struggled / Incorrect (reset interval, next review in 1d)
+    case good = 2      // Quality 2: Good retention (standard expanding interval x2.2)
+    case mastered = 3  // Quality 3: Easy / Flawless (expanded interval x3.5)
+
+    public var id: Int { rawValue }
+
+    public var label: String {
+        switch self {
+        case .hard: return "Struggled"
+        case .good: return "Good"
+        case .mastered: return "Mastered"
+        }
+    }
+
+    public var icon: String {
+        switch self {
+        case .hard: return "flame.fill"
+        case .good: return "checkmark.circle.fill"
+        case .mastered: return "star.fill"
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .hard: return "Review in 24–48h · Targets error log"
+        case .good: return "Expanding spacing (2.2× interval)"
+        case .mastered: return "Longer interval (3.5×) · Mastered"
+        }
+    }
+}
