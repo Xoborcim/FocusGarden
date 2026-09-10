@@ -1,6 +1,38 @@
 import Foundation
 import SwiftData
 
+public enum Chronotype: String, CaseIterable, Identifiable, Codable, Sendable {
+    case morningLark = "morningLark"
+    case balanced = "balanced"
+    case nightOwl = "nightOwl"
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .morningLark: return "Morning Lark"
+        case .balanced: return "Balanced"
+        case .nightOwl: return "Night Owl"
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .morningLark: return "Peak focus 8:00 AM – 12:00 PM; winds down earlier."
+        case .balanced: return "Steady focus 10:00 AM – 4:00 PM throughout the day."
+        case .nightOwl: return "Peak focus 5:00 PM – 10:00 PM; gentler morning start."
+        }
+    }
+
+    public var icon: String {
+        switch self {
+        case .morningLark: return "sun.max.fill"
+        case .balanced: return "scale.3d"
+        case .nightOwl: return "moon.stars.fill"
+        }
+    }
+}
+
 @Model
 final class AppStateRecord {
     var id: UUID = UUID()
@@ -18,6 +50,12 @@ final class AppStateRecord {
     var breakMinutesBetweenSessions: Int = 15
     var timerFocusMinutes: Int = 25
     var timerBreakMinutes: Int = 5
+    var chronotypeRaw: String = Chronotype.balanced.rawValue
+
+    var chronotype: Chronotype {
+        get { Chronotype(rawValue: chronotypeRaw) ?? .balanced }
+        set { chronotypeRaw = newValue.rawValue }
+    }
 
     init() {
         self.id = UUID()
@@ -34,5 +72,6 @@ final class AppStateRecord {
         self.breakMinutesBetweenSessions = 15
         self.timerFocusMinutes = 25
         self.timerBreakMinutes = 5
+        self.chronotypeRaw = Chronotype.balanced.rawValue
     }
 }

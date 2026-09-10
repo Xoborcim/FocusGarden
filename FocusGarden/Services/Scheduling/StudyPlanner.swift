@@ -187,8 +187,9 @@ struct StudyPlanner: Sendable {
         let chunkCount = max(1, chunks.count)
 
         return chunks.enumerated().map { index, chunk in
-            let fractionStart = Double(index) / Double(chunkCount)
-            let fractionEnd = Double(index + 1) / Double(chunkCount)
+            let fractions = spacedFraction(index: index, count: chunkCount, isTest: assessment.kind == .test)
+            let fractionStart = fractions.start
+            let fractionEnd = fractions.end
             var bucketStart = windowStart.addingTimeInterval(span * fractionStart)
             var bucketEnd = windowStart.addingTimeInterval(span * fractionEnd)
             let minimumSpan = TimeInterval(max(chunk * 60 + 60 * 60, 12 * 3600))
@@ -225,5 +226,19 @@ struct StudyPlanner: Sendable {
         if trimmed.count <= 42 { return trimmed }
         if !fallback.isEmpty { return fallback }
         return String(trimmed.prefix(42))
+    }
+
+    private func spacedFraction(index: Int, count: Int, isTest: Bool) -> (start: Double, end: Double) {
+        guard count > 1 else { return (0.0, 1.0) }
+        if isTest {
+            // Ebbinghaus spacing curve: early foundational review, progressive consolidation
+            let fStart = pow(Double(index) / Double(count), 1.25)
+            let fEnd = pow(Double(index + 1) / Double(count), 1.25)
+            return (fStart, fEnd)
+        } else {
+            let fStart = Double(index) / Double(count)
+            let fEnd = Double(index + 1) / Double(count)
+            return (fStart, fEnd)
+        }
     }
 }

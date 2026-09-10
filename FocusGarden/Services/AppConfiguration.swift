@@ -52,6 +52,7 @@ struct AppConfiguration: Equatable, Sendable {
     var commuteMinutesAfterLastClass: Int
     var timerFocusMinutes: Int = 25
     var timerBreakMinutes: Int = 5
+    var chronotype: Chronotype = .balanced
 
     static let prototype = AppConfiguration(
         horizonDays: 28,
@@ -71,7 +72,8 @@ struct AppConfiguration: Equatable, Sendable {
         assessmentLeadWeeks: 2,
         commuteMinutesAfterLastClass: 0,
         timerFocusMinutes: 25,
-        timerBreakMinutes: 5
+        timerBreakMinutes: 5,
+        chronotype: .balanced
     )
 
     static let userDefault = AppConfiguration(
@@ -92,7 +94,8 @@ struct AppConfiguration: Equatable, Sendable {
         assessmentLeadWeeks: 2,
         commuteMinutesAfterLastClass: 30,
         timerFocusMinutes: 25,
-        timerBreakMinutes: 5
+        timerBreakMinutes: 5,
+        chronotype: .balanced
     )
 
     mutating func applyStudyPreferences(from state: AppStateRecord) {
@@ -108,6 +111,7 @@ struct AppConfiguration: Equatable, Sendable {
         bufferMinutes = max(0, min(60, state.breakMinutesBetweenSessions))
         timerFocusMinutes = max(5, min(120, state.timerFocusMinutes))
         timerBreakMinutes = max(1, min(60, state.timerBreakMinutes))
+        chronotype = state.chronotype
     }
 
     func calendar() -> Calendar {

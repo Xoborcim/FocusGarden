@@ -588,6 +588,153 @@ final class AutoSchedulingEngineTests: XCTestCase {
         calendar.timeZone = SchedulingFixtures.toronto
         XCTAssertTrue(calendar.isDate(csPlacement!.start, inSameDayAs: day), "CS task should clump with CS class day")
     }
+
+    func testChronotypeMorningLarkPrefersMorning() {
+        let now = SchedulingFixtures.date(2026, 9, 8, 7, 0)
+        var config = SchedulingFixtures.config(horizon: 1)
+        config.windowStartHour = 7
+        config.windowEndHour = 23
+        config.chronotype = .morningLark
+
+        let task = SchedulingFixtures.task(title: "Deep Work", priority: 2, minutes: 60)
+        let plan = engine.generate(
+            request: SchedulingRequest(
+                now: now,
+                configuration: config,
+                tasks: [task],
+                classBlocks: []
+            )
+        )
+
+        XCTAssertFalse(plan.placements.isEmpty)
+        let placement = plan.placements[0]
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = SchedulingFixtures.toronto
+        let hour = calendar.component(.hour, from: placement.start)
+        XCTAssertGreaterThanOrEqual(hour, 8)
+        XCTAssertLessThanOrEqual(hour, 12, "Morning Lark should place study in the morning hours")
+    }
+
+    func testChronotypeNightOwlPrefersEvening() {
+        let now = SchedulingFixtures.date(2026, 9, 8, 7, 0)
+        var config = SchedulingFixtures.config(horizon: 1)
+        config.windowStartHour = 7
+        config.windowEndHour = 23
+        config.chronotype = .nightOwl
+
+        let task = SchedulingFixtures.task(title: "Late Deep Work", priority: 2, minutes: 60)
+        let plan = engine.generate(
+            request: SchedulingRequest(
+                now: now,
+                configuration: config,
+                tasks: [task],
+                classBlocks: []
+            )
+        )
+
+        XCTAssertFalse(plan.placements.isEmpty)
+        let placement = plan.placements[0]
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = SchedulingFixtures.toronto
+        let hour = calendar.component(.hour, from: placement.start)
+        XCTAssertGreaterThanOrEqual(hour, 17, "Night Owl should place study in the evening hours")
+    }
+
+    func testDynamicChunkFlexingFitsTightGap() {
+        let now = SchedulingFixtures.date(2026, 9, 8, 7, 0)
+        let day = SchedulingFixtures.date(2026, 9, 8, 0, 0)
+
+        // Class 1: 07:00 to 11:00
+        let c1 = SchedulingFixtures.classBlock(day: day, startHour: 7, durationHours: 4)
+        // Class 2: 11:45 to 23:00 (leaving exactly a 45-minute window from 11:00 to 11:45)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = SchedulingFixtures.toronto
+        let c2Start = calendar.date(bySettingHour: 11, minute: 45, second: 0, of: day)!
+        let c2End = calendar.date(bySettingHour: 23, minute: 0, second: 0, of: day)!
+        let c2 = ExpandedClassBlock(start: c2Start, end: c2End, cognitiveWeight: 1.0, courseCode: "C2", meetingType: "LEC")
+
+        var config = SchedulingFixtures.config(horizon: 1)
+        config.allowBetweenClasses = true
+        config.allowBeforeFirstClass = false
+        config.bufferMinutes = 0 // test pure gap sizing
+        config.minChunkMinutes = 30
+
+        // Task asks for 60m, which wouldn't fit the 45m gap without flexing
+        let task = SchedulingFixtures.task(title: "Flexible Chunk", priority: 3, minutes: 60)
+
+        let plan = engine.generate(
+            request: SchedulingRequest(
+                now: now,
+                configuration: config,
+                tasks: [task],
+                classBlocks: [c1, c2]
+            )
+        )
+
+        XCTAssertFalse(plan.placements.isEmpty, "Task should be placed thanks to dynamic chunk flexing")
+        let placement = plan.placements[0]
+        XCTAssertEqual(placement.chunkMinutes, 45, "Chunk should dynamically flex to 45m to fit the available window")
+    }
+
+    func testTestPrepSpacedAcrossMultipleDays() {
+        let now = SchedulingFixtures.date(2026, 9, 8, 7, 0)
+        let day1 = SchedulingFixtures.date(2026, 9, 8, 0, 0)
+        let day3 = SchedulingFixtures.date(2026, 9, 11, 14, 0)
+
+        var config = SchedulingFixtures.config(horizon: 4)
+        config.windowStartHour = 9
+        config.windowEndHour = 20
+
+        // 2 test prep sessions with 3-day window
+        let prep1 = PlannableTask(
+            id: UUID(),
+            title: "Study for Exam Pt 1",
+            priority: 3,
+            remainingMinutes: 60,
+            deadline: day3,
+            taskKind: TaskKind.testPrep.rawValue,
+            isSpacedReview: false,
+            isSoftLocked: false,
+            lockedStart: nil,
+            lockedEnd: nil,
+            intensity: 1.0,
+            courseCode: "MAT137",
+            earliestStart: day1,
+            latestEnd: day3
+        )
+        let prep2 = PlannableTask(
+            id: UUID(),
+            title: "Study for Exam Pt 2",
+            priority: 3,
+            remainingMinutes: 60,
+            deadline: day3,
+            taskKind: TaskKind.testPrep.rawValue,
+            isSpacedReview: false,
+            isSoftLocked: false,
+            lockedStart: nil,
+            lockedEnd: nil,
+            intensity: 1.0,
+            courseCode: "MAT137",
+            earliestStart: day1,
+            latestEnd: day3
+        )
+
+        let plan = engine.generate(
+            request: SchedulingRequest(
+                now: now,
+                configuration: config,
+                tasks: [prep1, prep2],
+                classBlocks: []
+            )
+        )
+
+        XCTAssertEqual(plan.placements.count, 2)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = SchedulingFixtures.toronto
+        let start1 = plan.placements[0].start
+        let start2 = plan.placements[1].start
+        XCTAssertFalse(calendar.isDate(start1, inSameDayAs: start2), "Exam prep sessions should be spaced across distinct days")
+    }
 }
 
 struct SeededGenerator: RandomNumberGenerator {

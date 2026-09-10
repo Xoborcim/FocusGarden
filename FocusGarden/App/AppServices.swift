@@ -174,6 +174,18 @@ final class AppServices {
         } catch {}
     }
 
+    func setChronotype(_ chronotype: Chronotype) {
+        guard configuration.chronotype != chronotype else { return }
+        configuration.chronotype = chronotype
+        scheduleManager.configuration = configuration
+        do {
+            let state = try SwiftDataAppStateRepository(context: context).record()
+            state.chronotype = chronotype
+            try context.save()
+        } catch {}
+        regenerate()
+    }
+
     func setExtraStudyMinutes(for assessment: Assessment, minutes: Int) {
         let clamped = max(0, min(600, minutes))
         guard assessment.extraStudyMinutes != clamped else { return }

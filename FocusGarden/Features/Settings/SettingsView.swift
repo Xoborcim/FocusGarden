@@ -47,6 +47,18 @@ struct SettingsView: View {
                         .font(FGTheme.mono(.caption))
                         .foregroundStyle(FGTheme.muted)
                 }
+                Section("ENERGY & CHRONOTYPE") {
+                    Picker("Chronotype", selection: chronotypeBinding) {
+                        ForEach(Chronotype.allCases) { type in
+                            Label(type.displayName, systemImage: type.icon)
+                                .tag(type)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    Text(services.configuration.chronotype.description)
+                        .font(FGTheme.mono(.caption))
+                        .foregroundStyle(FGTheme.muted)
+                }
                 Section("TIMER INTERVALS & BREAKS") {
                     Stepper(
                         "Focus sprint \(services.configuration.timerFocusMinutes)m",
@@ -198,6 +210,13 @@ struct SettingsView: View {
         Binding(
             get: { services.configuration.timerBreakMinutes },
             set: { services.setTimerIntervals(focus: services.configuration.timerFocusMinutes, breakMinutes: $0) }
+        )
+    }
+
+    private var chronotypeBinding: Binding<Chronotype> {
+        Binding(
+            get: { services.configuration.chronotype },
+            set: { services.setChronotype($0) }
         )
     }
 

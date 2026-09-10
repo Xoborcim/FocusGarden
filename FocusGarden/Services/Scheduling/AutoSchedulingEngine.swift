@@ -59,7 +59,9 @@ struct AutoSchedulingEngine: Sendable {
             .sorted(by: Self.taskSort)
 
         for task in sortedTasks {
-            let chunks = chunkMinutes(task.remainingMinutes, config: config)
+            let initialChunks = chunkMinutes(task.remainingMinutes, config: config)
+            var chunkQueue = initialChunks
+            var chunkIndex = 0
             var placedAll = true
 
             // Snapshot state for atomic rollback if task cannot be completely placed
@@ -70,9 +72,12 @@ struct AutoSchedulingEngine: Sendable {
             let snapshotDailyStudyMinutes = dailyStudyMinutes
             let snapshotLastEnd = lastEndByTask[task.id]
 
-            for (index, minutes) in chunks.enumerated() {
-                let duration = TimeInterval(minutes * 60)
-                let candidates = candidateStarts(
+            while chunkIndex < chunkQueue.count {
+                let minutes = chunkQueue[chunkIndex]
+                var effectiveMinutes = minutes
+                var duration = TimeInterval(effectiveMinutes * 60)
+
+                var candidates = candidateStarts(
                     duration: duration,
                     now: request.now,
                     earliestStart: task.earliestStart,
@@ -85,6 +90,34 @@ struct AutoSchedulingEngine: Sendable {
                     isReview: task.isReview,
                     dailyNonReviewCounts: dailyNonReviewCounts
                 )
+
+                // Dynamic Chunk Flexing: If preferred chunk size has no slots, flex down to fit available gaps
+                if candidates.isEmpty && effectiveMinutes > config.minChunkMinutes {
+                    var testMinutes = effectiveMinutes - config.granularityMinutes
+                    while testMinutes >= config.minChunkMinutes {
+                        let testDur = TimeInterval(testMinutes * 60)
+                        let testCandidates = candidateStarts(
+                            duration: testDur,
+                            now: request.now,
+                            earliestStart: task.earliestStart,
+                            latestEnd: task.latestEnd ?? task.deadline,
+                            horizonEnd: horizonEnd,
+                            occupied: occupied,
+                            classBlocks: request.classBlocks,
+                            config: config,
+                            calendar: calendar,
+                            isReview: task.isReview,
+                            dailyNonReviewCounts: dailyNonReviewCounts
+                        )
+                        if !testCandidates.isEmpty {
+                            candidates = testCandidates
+                            effectiveMinutes = testMinutes
+                            duration = testDur
+                            break
+                        }
+                        testMinutes -= config.granularityMinutes
+                    }
+                }
 
                 guard let best = bestCandidate(
                     task: task,
@@ -121,11 +154,11 @@ struct AutoSchedulingEngine: Sendable {
                 placements.append(
                     ScheduledPlacement(
                         taskID: task.id,
-                        chunkID: stableChunkID(taskID: task.id, index: index),
+                        chunkID: stableChunkID(taskID: task.id, index: chunkIndex),
                         start: best.start,
                         end: end,
                         reason: reason,
-                        chunkMinutes: minutes
+                        chunkMinutes: effectiveMinutes
                     )
                 )
 
@@ -148,18 +181,110 @@ struct AutoSchedulingEngine: Sendable {
                     counts[courseCode, default: 0] += 1
                     dailyCourseBlockCounts[day] = counts
                 }
-                dailyStudyMinutes[day, default: 0] += minutes
+                dailyStudyMinutes[day, default: 0] += effectiveMinutes
                 lastEndByTask[task.id] = end
+
+                // If chunk was flexed down, queue the remainder if >= minChunkMinutes
+                let leftover = minutes - effectiveMinutes
+                if leftover >= config.minChunkMinutes {
+                    chunkQueue.append(leftover)
+                }
+
+                chunkIndex += 1
             }
 
             if !placedAll {
-                // Atomic, clean rollback of any partial placements for this task
-                placements.removeSubrange(snapshotPlacementsCount..<placements.count)
-                occupied.removeSubrange(snapshotOccupiedCount..<occupied.count)
-                dailyNonReviewCounts = snapshotDailyCounts
-                dailyCourseBlockCounts = snapshotDailyCourseCounts
-                dailyStudyMinutes = snapshotDailyStudyMinutes
-                lastEndByTask[task.id] = snapshotLastEnd
+                // Cooperative Swap: If a high-priority task (>= 3) is blocked, attempt to unseat a lower-priority routine study block
+                var swapped = false
+                if task.priority >= 3 {
+                    for pIdx in (0..<snapshotPlacementsCount).reversed() {
+                        let candidatePlacement = placements[pIdx]
+                        guard let candidateTask = sortedTasks.first(where: { $0.id == candidatePlacement.taskID }),
+                              candidateTask.priority < task.priority,
+                              !candidateTask.isSoftLocked,
+                              candidateTask.taskKind == TaskKind.study.rawValue
+                        else { continue }
+
+                        let searchFrom = max(request.now, task.earliestStart ?? request.now)
+                        let searchUntil = min(horizonEnd, (task.latestEnd ?? task.deadline) ?? horizonEnd)
+                        guard candidatePlacement.start >= searchFrom && candidatePlacement.end <= searchUntil else { continue }
+
+                        var testOccupied = occupied
+                        testOccupied.removeAll { $0.kind == .reserved && $0.start == candidatePlacement.start && $0.end == candidatePlacement.end }
+                        let breakInterval = TimeInterval(config.bufferMinutes * 60)
+                        if config.bufferMinutes > 0 {
+                            testOccupied.removeAll { $0.kind == .buffer && ($0.start == candidatePlacement.end || $0.end == candidatePlacement.start) }
+                        }
+
+                        let testCandidates = candidateStarts(
+                            duration: TimeInterval(task.remainingMinutes * 60),
+                            now: request.now,
+                            earliestStart: task.earliestStart,
+                            latestEnd: task.latestEnd ?? task.deadline,
+                            horizonEnd: horizonEnd,
+                            occupied: testOccupied,
+                            classBlocks: request.classBlocks,
+                            config: config,
+                            calendar: calendar,
+                            isReview: task.isReview,
+                            dailyNonReviewCounts: snapshotDailyCounts
+                        )
+
+                        if let testBest = bestCandidate(
+                            task: task,
+                            duration: TimeInterval(task.remainingMinutes * 60),
+                            candidates: testCandidates,
+                            occupied: testOccupied,
+                            classBlocks: request.classBlocks,
+                            config: config,
+                            calendar: calendar,
+                            dailyNonReviewCounts: snapshotDailyCounts,
+                            dailyCourseBlockCounts: snapshotDailyCourseCounts,
+                            dailyStudyMinutes: snapshotDailyStudyMinutes,
+                            lastEnd: snapshotLastEnd
+                        ) {
+                            placements.remove(at: pIdx)
+                            occupied = testOccupied
+                            let end = testBest.start.addingTimeInterval(TimeInterval(task.remainingMinutes * 60))
+                            let reason = explain(
+                                task: task,
+                                start: testBest.start,
+                                lastClassEnd: lastClassEnd(on: calendar.startOfDay(for: testBest.start), classes: request.classBlocks, calendar: calendar),
+                                occupied: occupied,
+                                calendar: calendar
+                            )
+                            placements.append(
+                                ScheduledPlacement(
+                                    taskID: task.id,
+                                    chunkID: stableChunkID(taskID: task.id, index: 0),
+                                    start: testBest.start,
+                                    end: end,
+                                    reason: reason,
+                                    chunkMinutes: task.remainingMinutes
+                                )
+                            )
+                            let blockLabel = task.courseCode.isEmpty ? task.title : task.courseCode
+                            occupied.append(OccupiedInterval(start: testBest.start, end: end, kind: .reserved, cognitiveWeight: 0, label: blockLabel))
+                            if config.bufferMinutes > 0 {
+                                occupied.append(OccupiedInterval(start: end, end: end.addingTimeInterval(breakInterval), kind: .buffer, cognitiveWeight: 0, label: "buffer"))
+                                occupied.append(OccupiedInterval(start: testBest.start.addingTimeInterval(-breakInterval), end: testBest.start, kind: .buffer, cognitiveWeight: 0, label: "buffer"))
+                            }
+                            swapped = true
+                            unscheduled.removeAll { $0.taskID == task.id }
+                            break
+                        }
+                    }
+                }
+
+                if !swapped {
+                    // Atomic, clean rollback of any partial placements for this task
+                    placements.removeSubrange(snapshotPlacementsCount..<placements.count)
+                    occupied.removeSubrange(snapshotOccupiedCount..<occupied.count)
+                    dailyNonReviewCounts = snapshotDailyCounts
+                    dailyCourseBlockCounts = snapshotDailyCourseCounts
+                    dailyStudyMinutes = snapshotDailyStudyMinutes
+                    lastEndByTask[task.id] = snapshotLastEnd
+                }
             }
         }
 
@@ -256,20 +381,67 @@ struct AutoSchedulingEngine: Sendable {
                     calendar: calendar
                 )
                 for window in windows {
+                    let windowStart = max(window.start, searchFrom)
                     let windowEnd = min(window.end, searchUntil)
-                    var cursor = aligned(window.start, granularity: config.granularityMinutes, calendar: calendar)
-                    if cursor < window.start {
-                        cursor = cursor.addingTimeInterval(step)
-                    }
-                    while cursor.addingTimeInterval(duration) <= windowEnd {
-                        let end = cursor.addingTimeInterval(duration)
-                        let hardOverlap = occupied.contains { interval in
-                            interval.overlaps(cursor, end)
+                    guard windowStart < windowEnd, windowEnd.timeIntervalSince(windowStart) >= duration else { continue }
+
+                    let intersectingOccupied = occupied.filter { $0.overlaps(windowStart, windowEnd) }
+
+                    if intersectingOccupied.isEmpty {
+                        var cursor = aligned(windowStart, granularity: config.granularityMinutes, calendar: calendar)
+                        if cursor < windowStart {
+                            cursor = cursor.addingTimeInterval(step)
                         }
-                        if !hardOverlap {
+                        while cursor.addingTimeInterval(duration) <= windowEnd {
                             starts.append(cursor)
+                            cursor = cursor.addingTimeInterval(step)
                         }
-                        cursor = cursor.addingTimeInterval(step)
+                    } else {
+                        var clamped: [(start: Date, end: Date)] = []
+                        for occ in intersectingOccupied {
+                            let cStart = max(windowStart, occ.start)
+                            let cEnd = min(windowEnd, occ.end)
+                            if cStart < cEnd {
+                                clamped.append((cStart, cEnd))
+                            }
+                        }
+                        clamped.sort { $0.start < $1.start }
+
+                        var merged: [(start: Date, end: Date)] = []
+                        for interval in clamped {
+                            if let last = merged.last {
+                                if interval.start <= last.end {
+                                    merged[merged.count - 1].end = max(last.end, interval.end)
+                                } else {
+                                    merged.append(interval)
+                                }
+                            } else {
+                                merged.append(interval)
+                            }
+                        }
+
+                        var freeIntervals: [(start: Date, end: Date)] = []
+                        var current = windowStart
+                        for occ in merged {
+                            if occ.start > current {
+                                freeIntervals.append((current, occ.start))
+                            }
+                            current = max(current, occ.end)
+                        }
+                        if current < windowEnd {
+                            freeIntervals.append((current, windowEnd))
+                        }
+
+                        for free in freeIntervals where free.end.timeIntervalSince(free.start) >= duration {
+                            var cursor = aligned(free.start, granularity: config.granularityMinutes, calendar: calendar)
+                            if cursor < free.start {
+                                cursor = cursor.addingTimeInterval(step)
+                            }
+                            while cursor.addingTimeInterval(duration) <= free.end {
+                                starts.append(cursor)
+                                cursor = cursor.addingTimeInterval(step)
+                            }
+                        }
                     }
                 }
             }
@@ -490,6 +662,40 @@ struct AutoSchedulingEngine: Sendable {
             }
         }
 
+        // Personal Energy / Chronotype Affinity
+        let startHour = calendar.component(.hour, from: start)
+        switch config.chronotype {
+        case .morningLark:
+            if startHour >= 8 && startHour < 12 {
+                score += 14.0
+            } else if startHour >= 12 && startHour < 16 {
+                score += 6.0
+            } else if startHour >= 20 {
+                score -= 12.0
+            }
+        case .nightOwl:
+            if startHour >= 17 && startHour < 22 {
+                score += 14.0
+            } else if startHour >= 13 && startHour < 17 {
+                score += 6.0
+            } else if startHour < 10 {
+                score -= 12.0
+            }
+        case .balanced:
+            if startHour >= 10 && startHour < 17 {
+                score += 6.0
+            }
+        }
+
+        // Spaced Repetition for Exam Prep: distribute across distinct days rather than cramming
+        if task.taskKind == TaskKind.testPrep.rawValue, let lastEnd {
+            if calendar.isDate(start, inSameDayAs: lastEnd) {
+                score -= 16.0
+            } else {
+                score += 12.0
+            }
+        }
+
         // Homework multi-chunk continuation bonus
         if task.taskKind == TaskKind.homework.rawValue, let lastEnd, start >= lastEnd {
             let gap = start.timeIntervalSince(lastEnd)
@@ -504,7 +710,8 @@ struct AutoSchedulingEngine: Sendable {
         if !courseCode.isEmpty {
             let existingBlocksToday = dailyCourseBlockCounts[day]?[courseCode] ?? 0
             if existingBlocksToday > 0 {
-                score -= Double(existingBlocksToday) * 22.0
+                let penaltyPerBlock: Double = task.taskKind == TaskKind.testPrep.rawValue ? 45.0 : 22.0
+                score -= Double(existingBlocksToday) * penaltyPerBlock
             }
         }
 
