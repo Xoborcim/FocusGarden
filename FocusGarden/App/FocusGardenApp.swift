@@ -20,7 +20,7 @@ struct FocusGardenApp: App {
                 .environment(services)
                 .modelContainer(container)
                 .preferredColorScheme(.dark)
-                .onAppear { services.bootstrap() }
+                .task { await services.bootstrap() }
         }
     }
 
@@ -37,10 +37,12 @@ struct RootView: View {
     var body: some View {
         let onboarded = appState.first?.hasCompletedOnboarding ?? services.hasCompletedOnboarding
         Group {
-            if onboarded {
-                RootTabView()
-            } else {
+            if !onboarded {
                 OnboardingView()
+            } else if !services.isReady {
+                LaunchView()
+            } else {
+                RootTabView()
             }
         }
         .background(FGTheme.background.ignoresSafeArea())
@@ -86,5 +88,25 @@ struct RootTabView: View {
         }
         .tint(FGTheme.green)
         .preferredColorScheme(.dark)
+    }
+}
+
+struct LaunchView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            Image(systemName: "leaf.fill")
+                .font(.system(size: 56))
+                .foregroundStyle(FGTheme.green)
+            Text("FocusGarden")
+                .font(FGTheme.mono(.title, weight: .bold))
+                .foregroundStyle(.white)
+            ProgressView()
+                .tint(FGTheme.green)
+                .scaleEffect(1.2)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(FGTheme.background.ignoresSafeArea())
     }
 }

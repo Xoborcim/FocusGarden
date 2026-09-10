@@ -1,8 +1,7 @@
 import Foundation
 import SwiftData
 
-@MainActor
-struct ScheduleManager {
+struct ScheduleManager: Sendable {
     var engine: AutoSchedulingEngine
     var planner: StudyPlanner
     var configuration: AppConfiguration

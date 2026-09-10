@@ -20,6 +20,7 @@ final class AppServices {
     var activeSessionTaskID: UUID?
     var remindersEnabled: Bool = true
     private var didBootstrap = false
+    var isReady = false
 
     init(
         container: ModelContainer,
@@ -45,7 +46,7 @@ final class AppServices {
         return try? context.fetch(FetchDescriptor<FocusTask>()).first { $0.id == activeSessionTaskID && !$0.isCompleted }
     }
 
-    func bootstrap() {
+    func bootstrap() async {
         guard !didBootstrap else { return }
         didBootstrap = true
         do {
@@ -57,15 +58,30 @@ final class AppServices {
                 state.hasResetStudySessionsFor1HourChunks = true
                 try? context.save()
             }
-            lastPlan = try scheduleManager.regenerate(context: context, now: clock.now)
             if let active = try context.fetch(FetchDescriptor<FocusTask>()).first(where: { $0.isInSession }) {
                 activeSessionTaskID = active.id
             }
+
+            // Move the heavy scheduling work to a background context
+            let config = configuration
+            let now = clock.now
+            let plan = try await Task.detached { [container] in
+                let bgContext = ModelContext(container)
+                let manager = ScheduleManager(
+                    engine: AutoSchedulingEngine(),
+                    planner: StudyPlanner(),
+                    configuration: config
+                )
+                return try manager.regenerate(context: bgContext, now: now)
+            }.value
+
+            lastPlan = plan
             refreshWidget()
             Task { await setupReminders() }
         } catch {
             lastPlan = nil
         }
+        isReady = true
     }
 
     func applyStudyPreferences(from state: AppStateRecord) {
