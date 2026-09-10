@@ -52,6 +52,11 @@ final class AppServices {
             let state = try SwiftDataAppStateRepository(context: context).record()
             applyStudyPreferences(from: state)
             remindersEnabled = state.remindersEnabled
+            if !state.hasResetStudySessionsFor1HourChunks {
+                resetStudySessionsInternal()
+                state.hasResetStudySessionsFor1HourChunks = true
+                try? context.save()
+            }
             lastPlan = try scheduleManager.regenerate(context: context, now: clock.now)
             if let active = try context.fetch(FetchDescriptor<FocusTask>()).first(where: { $0.isInSession }) {
                 activeSessionTaskID = active.id
@@ -436,17 +441,31 @@ final class AppServices {
     func recordSessionFeedback(for task: FocusTask, rating: MasteryRating, errorNotes: String = "") {
         task.masteryRating = rating
         task.errorNotes = errorNotes
-        if rating == .hard {
-            task.cognitiveMode = .errorReview
-            let courseCode = task.linkedCourse?.code ?? ""
-            if !courseCode.isEmpty,
-               let otherTasks = try? context.fetch(FetchDescriptor<FocusTask>()),
-               let nextTask = otherTasks.filter({ !$0.isCompleted && ($0.linkedCourse?.code ?? "") == courseCode }).sorted(by: { ($0.scheduledStart ?? .distantFuture) < ($1.scheduledStart ?? .distantFuture) }).first {
-                nextTask.cognitiveMode = .errorReview
-            }
-        }
         try? context.save()
         regenerate()
+    }
+
+    func resetStudySessions() {
+        resetStudySessionsInternal()
+        try? context.save()
+        regenerate()
+        refreshWidget()
+        Task { await refreshReminders() }
+    }
+
+    private func resetStudySessionsInternal() {
+        guard let allTasks = try? context.fetch(FetchDescriptor<FocusTask>()) else { return }
+        let studyTasks = allTasks.filter { $0.taskKind == TaskKind.study.rawValue }
+        for task in studyTasks {
+            if activeSessionTaskID == task.id {
+                activeSessionTaskID = nil
+            }
+            reminderService.cancel(taskID: task.id)
+            if let plant = GardenService.fetchPlant(for: task.id, in: context), !plant.isHarvested {
+                context.delete(plant)
+            }
+            context.delete(task)
+        }
     }
 
     func deleteCourse(_ course: Course) {

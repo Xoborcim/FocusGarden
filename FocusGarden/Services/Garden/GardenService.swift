@@ -80,7 +80,6 @@ struct GardenService {
             focusedMinutes: 0,
             growthProgress: 0.0,
             isWilted: false,
-            cognitiveMode: task.cognitiveMode,
             gridIndex: nextIndex
         )
 

@@ -381,6 +381,46 @@ final class AutoSchedulingEngineTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(placement.start, expectedEarliestStart, "Study placement must respect 45m commute time after last lecture")
     }
 
+    func testCommuteRespectedWhenClassEndsAtStudyWindowStart() {
+        // Class is 15:00 - 17:00. Window starts at 17:00. Commute is 45m.
+        let day = SchedulingFixtures.date(2026, 9, 8, 0, 0)
+        let classEnd = SchedulingFixtures.date(2026, 9, 8, 17, 0)
+        let classStart = SchedulingFixtures.date(2026, 9, 8, 15, 0)
+        var config = SchedulingFixtures.config()
+        config.windowStartHour = 17
+        config.windowStartMinute = 0
+        config.windowEndHour = 22
+        config.windowEndMinute = 0
+        config.commuteMinutesAfterLastClass = 45
+
+        let block = ExpandedClassBlock(start: classStart, end: classEnd, cognitiveWeight: 1.0, courseCode: "CSC207", meetingType: "LEC")
+        let windows = engine.studyWindows(day: day, searchFrom: classEnd, classes: [block], config: config, calendar: config.calendar())
+
+        XCTAssertFalse(windows.isEmpty)
+        let expectedStart = SchedulingFixtures.date(2026, 9, 8, 17, 45) // 17:00 + 45m
+        XCTAssertEqual(windows.first?.start, expectedStart, "Study window must be delayed until 17:45 by commute")
+    }
+
+    func testCommuteRespectedWhenClassEndsBeforeStudyWindowStart() {
+        // Class is 14:00 - 16:30. Window starts at 17:00. Commute is 45m -> ends 17:15.
+        let day = SchedulingFixtures.date(2026, 9, 8, 0, 0)
+        let classStart = SchedulingFixtures.date(2026, 9, 8, 14, 0)
+        let classEnd = SchedulingFixtures.date(2026, 9, 8, 16, 30)
+        var config = SchedulingFixtures.config()
+        config.windowStartHour = 17
+        config.windowStartMinute = 0
+        config.windowEndHour = 22
+        config.windowEndMinute = 0
+        config.commuteMinutesAfterLastClass = 45
+
+        let block = ExpandedClassBlock(start: classStart, end: classEnd, cognitiveWeight: 1.0, courseCode: "CSC207", meetingType: "LEC")
+        let windows = engine.studyWindows(day: day, searchFrom: classEnd, classes: [block], config: config, calendar: config.calendar())
+
+        XCTAssertFalse(windows.isEmpty)
+        let expectedStart = SchedulingFixtures.date(2026, 9, 8, 17, 15) // 16:30 + 45m = 17:15
+        XCTAssertEqual(windows.first?.start, expectedStart, "Study window must begin at 17:15 after 45m commute from 16:30 end")
+    }
+
     func testNoClassDayUsesClockWindowOnly() {
         let now = SchedulingFixtures.date(2026, 9, 8, 8, 0)
         var config = SchedulingFixtures.config()

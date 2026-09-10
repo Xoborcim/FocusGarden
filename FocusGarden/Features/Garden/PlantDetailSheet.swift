@@ -152,13 +152,6 @@ struct PlantDetailSheet: View {
                     value: "\(plant.focusedMinutes)m (\(Int(plant.growthProgress * 100))%)",
                     valueColor: plant.isMature ? FGTheme.green : (plant.isWilted ? FGTheme.danger : FGTheme.amber)
                 )
-                if let mode = plant.cognitiveMode {
-                    SpecRow(
-                        label: "COGNITIVE MODE",
-                        value: mode.title.uppercased(),
-                        valueColor: FGTheme.amber
-                    )
-                }
             }
         }
         .padding(14)

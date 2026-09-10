@@ -243,28 +243,6 @@ struct FocusSessionView: View {
                         .font(FGTheme.mono(.caption2))
                         .foregroundStyle(FGTheme.muted)
                 }
-
-                // Cognitive Mode & Evidence-Based Guidance Prompt
-                VStack(spacing: 3) {
-                    HStack(spacing: 5) {
-                        Image(systemName: task.cognitiveMode.badgeIcon)
-                            .font(.system(size: 9, weight: .bold))
-                        Text(task.cognitiveMode.title.uppercased())
-                            .font(FGTheme.mono(.caption2, weight: .bold))
-                    }
-                    .foregroundStyle(task.cognitiveMode == .activeRecall ? FGTheme.green : (task.cognitiveMode == .errorReview ? FGTheme.danger : FGTheme.amber))
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 2.5)
-                    .background(FGTheme.surface)
-                    .overlay(Rectangle().stroke((task.cognitiveMode == .activeRecall ? FGTheme.green : (task.cognitiveMode == .errorReview ? FGTheme.danger : FGTheme.amber)).opacity(0.4), lineWidth: 1))
-
-                    Text(task.cognitiveMode.prompt)
-                        .font(FGTheme.mono(.caption2))
-                        .foregroundStyle(FGTheme.muted)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 16)
-                }
-                .padding(.top, 2)
             }
             .padding(.horizontal, 12)
 

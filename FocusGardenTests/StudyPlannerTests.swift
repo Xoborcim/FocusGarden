@@ -7,14 +7,15 @@ final class StudyPlannerTests: XCTestCase {
 
     func testWeeklyStudyScalesWithClassTime() {
         XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 120), 180)
-        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 0), 90)
-        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 400), 480)
+        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 0), 0)
+        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 400), 600)
     }
 
-    func testWeeklyStudyScalesWithDifficulty() {
-        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 120, difficulty: 1), 126)
-        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 120, difficulty: 3), 180)
-        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 120, difficulty: 5), 270)
+    func testWeeklyStudyIsStrictlyOnePointFiveTimesLectureHours() {
+        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 60), 90)
+        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 120), 180)
+        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 180), 270)
+        XCTAssertEqual(planner.weeklyStudyMinutes(classMinutes: 240), 360)
     }
 
     func testPlanCreatesWeeklyStudyAndSpecialSlots() {
@@ -155,32 +156,24 @@ final class StudyPlannerTests: XCTestCase {
         XCTAssertTrue(items.isEmpty)
     }
 
-    func testCognitiveModesAssignedToExamPrepAndDifficultWeeklyStudy() {
+    func testWeeklyStudySplitIntoOneHourChunks() {
         let now = SchedulingFixtures.date(2026, 9, 8, 7, 0)
-        let examStart = SchedulingFixtures.date(2026, 9, 25, 14, 0)
+        let config = SchedulingFixtures.config(horizon: 7)
+        // 180 class minutes -> 270 study minutes (4.5 hours)
         let items = planner.plan(
-            courses: [CourseWorkload(code: "MAT223", weeklyClassMinutes: 180, difficulty: 4)],
-            assessments: [
-                AssessmentEvent(
-                    fingerprint: "test|MAT223|final",
-                    title: "MAT223 Final Exam",
-                    kind: .test,
-                    start: examStart,
-                    end: examStart.addingTimeInterval(3 * 3600),
-                    isAllDay: false,
-                    courseCode: "MAT223"
-                )
-            ],
+            courses: [CourseWorkload(code: "MAT223", weeklyClassMinutes: 180)],
+            assessments: [],
             now: now,
-            configuration: SchedulingFixtures.config(horizon: 21)
+            configuration: config
         )
 
-        let prep = items.filter { $0.kind == .testPrep }
-        XCTAssertGreaterThanOrEqual(prep.count, 2)
-        XCTAssertEqual(prep.first?.cognitiveMode, .workedExample, "First exam prep should be Worked Example mode")
-        XCTAssertEqual(prep.last?.cognitiveMode, .errorReview, "Final exam prep should be Error Review mode")
-
-        let hardWeekly = items.filter { $0.kind == .study && $0.courseCode == "MAT223" }
-        XCTAssertEqual(hardWeekly.first?.cognitiveMode, .workedExample, "First chunk of difficulty 4+ course should be Worked Example")
+        let studyItems = items.filter { $0.kind == .study && $0.courseCode == "MAT223" }
+        XCTAssertFalse(studyItems.isEmpty)
+        // Verify all chunks are at most 60 minutes (1 hour)
+        XCTAssertTrue(studyItems.allSatisfy { $0.minutes <= 60 })
+        // Expected chunks for each week: 60, 60, 60, 60, 30 = 270 minutes
+        let week1Chunks = Array(studyItems.prefix(5)).map(\.minutes)
+        XCTAssertEqual(week1Chunks, [60, 60, 60, 60, 30])
+        XCTAssertEqual(week1Chunks.reduce(0, +), 270)
     }
 }

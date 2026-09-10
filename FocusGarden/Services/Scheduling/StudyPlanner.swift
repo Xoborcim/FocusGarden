@@ -31,7 +31,6 @@ struct GeneratedStudyItem: Equatable, Sendable, Identifiable {
     var assessmentFingerprint: String
     var earliestStart: Date? = nil
     var latestEnd: Date? = nil
-    var cognitiveMode: CognitiveMode = .activeRecall
 }
 
 struct StudyPlanner: Sendable {
@@ -77,10 +76,8 @@ struct StudyPlanner: Sendable {
     }
 
     func weeklyStudyMinutes(classMinutes: Int, difficulty: Int = 3) -> Int {
-        let factor = difficultyFactor(difficulty)
-        let raw = Int((Double(max(0, classMinutes)) * 1.5 * factor).rounded())
-        let floor = classMinutes == 0 ? Int((90.0 * factor).rounded()) : Int((60.0 * factor).rounded())
-        return min(480, max(max(30, floor), raw))
+        guard classMinutes > 0 else { return 0 }
+        return Int((Double(classMinutes) * 1.5).rounded())
     }
 
     func difficultyFactor(_ difficulty: Int) -> Double {
@@ -125,7 +122,17 @@ struct StudyPlanner: Sendable {
         configuration: AppConfiguration
     ) -> [GeneratedStudyItem] {
         let weeklyMinutes = weeklyStudyMinutes(classMinutes: course.weeklyClassMinutes, difficulty: course.difficulty)
-        let chunks = AutoSchedulingEngine().chunkMinutes(weeklyMinutes, config: configuration)
+        guard weeklyMinutes > 0 else { return [] }
+
+        // Split weekly lecture study strictly into 1-hour chunks (60 minutes each, with tail remainder)
+        var remaining = weeklyMinutes
+        var chunks: [Int] = []
+        while remaining > 0 {
+            let chunk = min(60, remaining)
+            chunks.append(chunk)
+            remaining -= chunk
+        }
+
         let earliest = schoolStart
         let priority = course.difficulty <= 2 ? 1 : 2
         var items: [GeneratedStudyItem] = []
@@ -140,7 +147,6 @@ struct StudyPlanner: Sendable {
                 continue
             }
             for (index, minutes) in chunks.enumerated() {
-                let mode: CognitiveMode = (course.difficulty >= 4 && index == 0) ? .workedExample : .activeRecall
                 items.append(
                     GeneratedStudyItem(
                         generationKey: "study|\(course.code.uppercased())|\(Int(weekStart.timeIntervalSince1970))|\(index)",
@@ -152,8 +158,7 @@ struct StudyPlanner: Sendable {
                         courseCode: course.code,
                         assessmentFingerprint: "",
                         earliestStart: earliest,
-                        latestEnd: weekEnd,
-                        cognitiveMode: mode
+                        latestEnd: weekEnd
                     )
                 )
             }
@@ -209,21 +214,6 @@ struct StudyPlanner: Sendable {
                 bucketEnd = due
             }
 
-            let mode: CognitiveMode
-            if assessment.kind == .test {
-                if chunkCount >= 3 {
-                    if index == 0 { mode = .workedExample }
-                    else if index == chunkCount - 1 { mode = .errorReview }
-                    else { mode = .activeRecall }
-                } else if chunkCount == 2 {
-                    mode = index == 0 ? .workedExample : .activeRecall
-                } else {
-                    mode = .activeRecall
-                }
-            } else {
-                mode = index == 0 ? .workedExample : .activeRecall
-            }
-
             return GeneratedStudyItem(
                 generationKey: "\(kind.rawValue)|\(assessment.fingerprint)|\(index)",
                 title: "\(prefix) \(title)",
@@ -234,8 +224,7 @@ struct StudyPlanner: Sendable {
                 courseCode: assessment.courseCode,
                 assessmentFingerprint: assessment.fingerprint,
                 earliestStart: bucketStart,
-                latestEnd: bucketEnd,
-                cognitiveMode: mode
+                latestEnd: bucketEnd
             )
         }
     }

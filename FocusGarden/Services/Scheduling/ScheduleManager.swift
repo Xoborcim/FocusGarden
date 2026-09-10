@@ -13,10 +13,17 @@ struct ScheduleManager {
         let assessments = try context.fetch(FetchDescriptor<Assessment>())
         let tasks = try context.fetch(FetchDescriptor<FocusTask>())
         let calendar = configuration.calendar()
-        let term = activeTerm(now: now, blocks: blocks, calendar: calendar)
+        let horizonStart = calendar.startOfDay(for: now)
+        let horizonEnd = calendar.date(byAdding: .day, value: configuration.horizonDays, to: horizonStart) ?? horizonStart
 
-        let termBlocks = blocks.filter { termOf($0, now: now, calendar: calendar) == term }
-        let templates = termBlocks.map { block in
+        // Include any class blocks whose validity range overlaps the scheduling horizon
+        let activeBlocks = blocks.filter { block in
+            let blockStart = calendar.startOfDay(for: block.validFrom)
+            let blockEnd = calendar.startOfDay(for: block.validUntil)
+            return blockStart <= horizonEnd && blockEnd >= horizonStart
+        }
+
+        let templates = activeBlocks.map { block in
             RecurringClassTemplate(
                 dayOfWeek: block.dayOfWeek,
                 startTime: block.startTime,
@@ -29,17 +36,23 @@ struct ScheduleManager {
             )
         }
         var expanded = engine.expandClassBlocks(templates: templates, now: now, configuration: configuration)
-        let termAssessments = assessments.filter { term.contains($0.start, calendar: calendar) }
-        expanded.append(contentsOf: timedAssessments(termAssessments, now: now))
 
-        let activeCodes = Set(termBlocks.compactMap { block -> String? in
+        // Include any assessments occurring in the scheduling horizon
+        let activeAssessments = assessments.filter { assessment in
+            let aStart = calendar.startOfDay(for: assessment.start)
+            let aEnd = calendar.startOfDay(for: assessment.end)
+            return aStart <= horizonEnd && aEnd >= horizonStart
+        }
+        expanded.append(contentsOf: timedAssessments(activeAssessments, now: now))
+
+        let activeCodes = Set(activeBlocks.compactMap { block -> String? in
             let code = block.course?.code ?? ""
             return code.isEmpty ? nil : code
         })
         let desired = planner.plan(
-            courses: courseWorkloads(courses: courses, blocks: termBlocks, calendar: calendar)
+            courses: courseWorkloads(courses: courses, blocks: activeBlocks, calendar: calendar)
                 .filter { activeCodes.contains($0.code) },
-            assessments: termAssessments.map { assessment in
+            assessments: activeAssessments.map { assessment in
                 AssessmentEvent(
                     fingerprint: assessment.fingerprint.isEmpty ? assessment.id.uuidString : assessment.fingerprint,
                     title: assessment.title,
@@ -54,7 +67,7 @@ struct ScheduleManager {
             },
             now: now,
             configuration: configuration,
-            schoolStart: schoolStart(from: termBlocks, calendar: calendar)
+            schoolStart: schoolStart(from: activeBlocks, calendar: calendar)
         )
 
         let synced = try syncGeneratedTasks(
@@ -92,7 +105,6 @@ struct ScheduleManager {
                 courseCode: task.linkedCourse?.code ?? "",
                 earliestStart: bounds?.earliest,
                 latestEnd: bounds?.latest,
-                cognitiveMode: task.cognitiveModeRaw,
                 masteryRating: task.masteryRatingRaw,
                 errorNotes: task.errorNotes
             )
@@ -135,8 +147,14 @@ struct ScheduleManager {
     func expandedClasses(context: ModelContext, now: Date) throws -> [ExpandedClassBlock] {
         let blocks = try context.fetch(FetchDescriptor<ClassBlock>())
         let calendar = configuration.calendar()
-        let term = activeTerm(now: now, blocks: blocks, calendar: calendar)
-        let templates = blocks.filter { termOf($0, now: now, calendar: calendar) == term }.map {
+        let horizonStart = calendar.startOfDay(for: now)
+        let horizonEnd = calendar.date(byAdding: .day, value: configuration.horizonDays, to: horizonStart) ?? horizonStart
+        let activeBlocks = blocks.filter { block in
+            let blockStart = calendar.startOfDay(for: block.validFrom)
+            let blockEnd = calendar.startOfDay(for: block.validUntil)
+            return blockStart <= horizonEnd && blockEnd >= horizonStart
+        }
+        let templates = activeBlocks.map {
             RecurringClassTemplate(
                 dayOfWeek: $0.dayOfWeek,
                 startTime: $0.startTime,
@@ -263,11 +281,6 @@ struct ScheduleManager {
                     task.deadline = item.deadline
                     task.linkedCourse = course
                     task.linkedAssessmentFingerprint = item.assessmentFingerprint
-                    if task.masteryRating == .hard {
-                        task.cognitiveMode = .errorReview
-                    } else if task.cognitiveModeRaw == CognitiveMode.activeRecall.rawValue {
-                        task.cognitiveMode = item.cognitiveMode
-                    }
                 }
                 result.append(task)
             } else {
@@ -279,8 +292,7 @@ struct ScheduleManager {
                     linkedCourse: course,
                     deadline: item.deadline,
                     generationKey: item.generationKey,
-                    linkedAssessmentFingerprint: item.assessmentFingerprint,
-                    cognitiveMode: item.cognitiveMode
+                    linkedAssessmentFingerprint: item.assessmentFingerprint
                 )
                 context.insert(task)
                 result.append(task)

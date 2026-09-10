@@ -52,8 +52,7 @@ enum SchedulingFixtures {
         review: Bool = false,
         locked: (Date, Date)? = nil,
         code: String = "CSC108",
-        mastery: Int = 2,
-        mode: CognitiveMode = .activeRecall
+        mastery: Int = 2
     ) -> PlannableTask {
         PlannableTask(
             id: id,
@@ -68,7 +67,6 @@ enum SchedulingFixtures {
             lockedEnd: locked?.1,
             intensity: 1.0,
             courseCode: code,
-            cognitiveMode: mode.rawValue,
             masteryRating: mastery
         )
     }

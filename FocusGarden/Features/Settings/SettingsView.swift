@@ -8,6 +8,7 @@ struct SettingsView: View {
     @Query private var courses: [Course]
     @State private var showingImporter = false
     @State private var showingResetConfirm = false
+    @State private var showingResetStudyConfirm = false
 
     var body: some View {
         FGScreen(title: "SETTINGS") {
@@ -97,6 +98,13 @@ struct SettingsView: View {
                         .foregroundStyle(FGTheme.muted)
                 }
                 Section("RESET") {
+                    Button("Reset study sessions", role: .destructive) {
+                        showingResetStudyConfirm = true
+                    }
+                    Text("Re-splits study sessions into 1-hour lecture chunks. Preserves your saved tests, homework, and courses.")
+                        .font(FGTheme.mono(.caption))
+                        .foregroundStyle(FGTheme.muted)
+
                     Button("Reset timetable", role: .destructive) {
                         showingResetConfirm = true
                     }
@@ -109,6 +117,12 @@ struct SettingsView: View {
             .font(FGTheme.mono(.body))
         }
         .calendarImporter(isPresented: $showingImporter)
+        .alert("Reset study sessions?", isPresented: $showingResetStudyConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Reset Sessions", role: .destructive) { services.resetStudySessions() }
+        } message: {
+            Text("This regenerates all lecture study into 1-hour chunks. Your saved tests and homework will be kept.")
+        }
         .alert("Reset timetable?", isPresented: $showingResetConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Reset", role: .destructive) { services.resetAll() }

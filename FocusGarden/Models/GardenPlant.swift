@@ -17,7 +17,6 @@ final class GardenPlant {
     var focusedMinutes: Int = 0
     var growthProgress: Double = 0.0
     var isWilted: Bool = false
-    var cognitiveModeRaw: String?
     var gridIndex: Int = 0
 
     init(
@@ -32,7 +31,6 @@ final class GardenPlant {
         focusedMinutes: Int = 0,
         growthProgress: Double = 0.0,
         isWilted: Bool = false,
-        cognitiveMode: CognitiveMode? = nil,
         gridIndex: Int = 0
     ) {
         self.id = id
@@ -46,7 +44,6 @@ final class GardenPlant {
         self.focusedMinutes = max(0, focusedMinutes)
         self.growthProgress = min(1.0, max(0.0, growthProgress))
         self.isWilted = isWilted
-        self.cognitiveModeRaw = cognitiveMode?.rawValue
         self.gridIndex = gridIndex
     }
 
@@ -59,16 +56,6 @@ final class GardenPlant {
 
     var growthStage: PlantGrowthStage {
         PlantGrowthStage.stage(for: growthProgress, isWilted: isWilted)
-    }
-
-    var cognitiveMode: CognitiveMode? {
-        get {
-            guard let raw = cognitiveModeRaw else { return nil }
-            return CognitiveMode(rawValue: raw)
-        }
-        set {
-            cognitiveModeRaw = newValue?.rawValue
-        }
     }
 
     var isHarvested: Bool {

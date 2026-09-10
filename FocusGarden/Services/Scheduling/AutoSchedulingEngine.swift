@@ -465,7 +465,7 @@ struct AutoSchedulingEngine: Sendable {
         }
         if floor >= clock.end { return [] }
 
-        // Find classes occurring on this day and clamp to clock boundaries
+        // Find classes occurring on this day
         let classesToday = classes
             .filter { calendar.isDate($0.start, inSameDayAs: day) || calendar.isDate($0.end, inSameDayAs: day) }
             .sorted { $0.start < $1.start }
@@ -474,50 +474,49 @@ struct AutoSchedulingEngine: Sendable {
             return floor < clock.end ? [(floor, clock.end)] : []
         }
 
-        // Merge any overlapping or contiguous class blocks
-        var merged: [(start: Date, end: Date)] = []
+        let earliestClassStart = classesToday.map(\.start).min() ?? clock.start
+        let latestClassEnd = classesToday.map(\.end).max() ?? clock.end
+
+        // Merge contiguous or overlapping classes for between-class gap evaluation
+        var mergedClasses: [(start: Date, end: Date)] = []
         for block in classesToday {
-            let bStart = max(clock.start, block.start)
-            let bEnd = min(clock.end, block.end)
-            guard bStart < bEnd else { continue }
-            if let last = merged.last {
-                if bStart <= last.end {
-                    merged[merged.count - 1].end = max(last.end, bEnd)
+            guard block.end > block.start else { continue }
+            if let last = mergedClasses.last {
+                if block.start <= last.end {
+                    mergedClasses[mergedClasses.count - 1].end = max(last.end, block.end)
                 } else {
-                    merged.append((bStart, bEnd))
+                    mergedClasses.append((block.start, block.end))
                 }
             } else {
-                merged.append((bStart, bEnd))
+                mergedClasses.append((block.start, block.end))
             }
-        }
-
-        guard !merged.isEmpty else {
-            return floor < clock.end ? [(floor, clock.end)] : []
         }
 
         var segments: [(start: Date, end: Date)] = []
-        let first = merged[0]
-        let last = merged[merged.count - 1]
 
+        // 1. Before first class (if allowed)
         if config.allowBeforeFirstClass {
-            let end = min(first.start, clock.end)
-            if floor < end {
-                segments.append((floor, end))
+            let segStart = floor
+            let segEnd = min(earliestClassStart, clock.end)
+            if segStart < segEnd {
+                segments.append((segStart, segEnd))
             }
         }
 
-        if config.allowBetweenClasses && merged.count > 1 {
-            for index in 0..<(merged.count - 1) {
-                let gapStart = max(merged[index].end, floor)
-                let gapEnd = min(merged[index + 1].start, clock.end)
+        // 2. Between classes (if allowed)
+        if config.allowBetweenClasses && mergedClasses.count > 1 {
+            for index in 0..<(mergedClasses.count - 1) {
+                let gapStart = max(mergedClasses[index].end, floor, clock.start)
+                let gapEnd = min(mergedClasses[index + 1].start, clock.end)
                 if gapStart < gapEnd {
                     segments.append((gapStart, gapEnd))
                 }
             }
         }
 
+        // 3. After last class (always respects commute time)
         let commute = TimeInterval(max(0, config.commuteMinutesAfterLastClass) * 60)
-        let afterStart = max(last.end.addingTimeInterval(commute), floor)
+        let afterStart = max(latestClassEnd.addingTimeInterval(commute), floor, clock.start)
         if afterStart < clock.end {
             segments.append((afterStart, clock.end))
         }
@@ -798,7 +797,7 @@ struct AutoSchedulingEngine: Sendable {
 
     func lastClassEnd(on day: Date, classes: [ExpandedClassBlock], calendar: Calendar) -> Date? {
         classes
-            .filter { calendar.isDate($0.start, inSameDayAs: day) }
+            .filter { calendar.isDate($0.start, inSameDayAs: day) || calendar.isDate($0.end, inSameDayAs: day) }
             .map(\.end)
             .max()
     }

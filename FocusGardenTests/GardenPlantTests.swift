@@ -91,8 +91,7 @@ final class GardenPlantTests: XCTestCase {
         let plant = GardenPlant(
             title: "Calculus Review",
             species: .sunflower,
-            targetMinutes: 60,
-            cognitiveMode: .activeRecall
+            targetMinutes: 60
         )
 
         XCTAssertEqual(plant.title, "Calculus Review")
@@ -101,19 +100,14 @@ final class GardenPlantTests: XCTestCase {
         XCTAssertEqual(plant.focusedMinutes, 0)
         XCTAssertEqual(plant.growthProgress, 0.0)
         XCTAssertEqual(plant.growthStage, .seed)
-        XCTAssertEqual(plant.cognitiveMode, .activeRecall)
         XCTAssertFalse(plant.isHarvested)
         XCTAssertFalse(plant.isMature)
         XCTAssertFalse(plant.isWilted)
 
-        // Mutation of species and cognitiveMode
+        // Mutation of species
         plant.species = .lavender
         XCTAssertEqual(plant.species, .lavender)
         XCTAssertEqual(plant.speciesRaw, PlantSpecies.lavender.rawValue)
-
-        plant.cognitiveMode = .workedExample
-        XCTAssertEqual(plant.cognitiveMode, .workedExample)
-        XCTAssertEqual(plant.cognitiveModeRaw, CognitiveMode.workedExample.rawValue)
     }
 
     // MARK: - GardenService Tests

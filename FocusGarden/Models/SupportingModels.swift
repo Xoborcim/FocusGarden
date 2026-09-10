@@ -55,6 +55,7 @@ final class AppStateRecord {
     var currentStreakDays: Int = 0
     var longestStreakDays: Int = 0
     var lastFocusDate: Date? = nil
+    var hasResetStudySessionsFor1HourChunks: Bool = false
 
     var chronotype: Chronotype {
         get { Chronotype(rawValue: chronotypeRaw) ?? .balanced }
@@ -81,49 +82,7 @@ final class AppStateRecord {
         self.currentStreakDays = 0
         self.longestStreakDays = 0
         self.lastFocusDate = nil
-    }
-}
-
-public enum CognitiveMode: String, CaseIterable, Identifiable, Codable, Sendable {
-    case workedExample = "workedExample"
-    case activeRecall = "activeRecall"
-    case errorReview = "errorReview"
-
-    public var id: String { rawValue }
-
-    public var title: String {
-        switch self {
-        case .workedExample: return "Worked Example"
-        case .activeRecall: return "Active Recall"
-        case .errorReview: return "Error Log Review"
-        }
-    }
-
-    public var shortTag: String {
-        switch self {
-        case .workedExample: return "WORKED EX"
-        case .activeRecall: return "RECALL"
-        case .errorReview: return "ERROR LOG"
-        }
-    }
-
-    public var badgeIcon: String {
-        switch self {
-        case .workedExample: return "book.closed.fill"
-        case .activeRecall: return "brain.head.profile"
-        case .errorReview: return "arrow.triangle.2.circlepath.circle.fill"
-        }
-    }
-
-    public var prompt: String {
-        switch self {
-        case .workedExample:
-            return "Deconstruct reference solutions first, then reproduce them without looking."
-        case .activeRecall:
-            return "Close your notes. Solve practice problems and recall concepts purely from memory."
-        case .errorReview:
-            return "Target past homework & exam mistakes to permanently eliminate blind spots."
-        }
+        self.hasResetStudySessionsFor1HourChunks = false
     }
 }
 
