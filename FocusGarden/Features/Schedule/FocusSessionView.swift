@@ -2,62 +2,33 @@ import SwiftData
 import SwiftUI
 import UIKit
 
-// MARK: - Botanical Growth Stage
-
-enum BotanicalGrowthStage: Int, CaseIterable {
-    case seed = 1
-    case sprout = 2
-    case foliage = 3
-    case blossom = 4
-    case harvest = 5
-
-    var symbol: String {
-        switch self {
-        case .seed: return "🌱"
-        case .sprout: return "🌿"
-        case .foliage: return "🪴"
-        case .blossom: return "🌸"
-        case .harvest: return "🌳"
-        }
-    }
-
-    var title: String {
-        switch self {
-        case .seed: return "SEED SOWN"
-        case .sprout: return "SPROUTING"
-        case .foliage: return "DEEP FLOW"
-        case .blossom: return "BUDDING BLOOM"
-        case .harvest: return "HARVEST READY"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .seed: return "Setting intention & entering flow"
-        case .sprout: return "Roots established · Building momentum"
-        case .foliage: return "Peak concentration · Distraction-free zone"
-        case .blossom: return "High clarity · Approaching finish line"
-        case .harvest: return "Masterful session · Ready to harvest"
-        }
-    }
-
-    static func stage(for progress: Double) -> BotanicalGrowthStage {
-        switch progress {
-        case ..<0.20: return .seed
-        case ..<0.45: return .sprout
-        case ..<0.75: return .foliage
-        case ..<0.95: return .blossom
-        default: return .harvest
-        }
-    }
-}
-
 // MARK: - FocusSessionView
 
 struct FocusSessionView: View {
     @Environment(AppServices.self) private var services
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \FocusTask.scheduledStart) private var allTasks: [FocusTask]
     let task: FocusTask
+
+    private var gardenPlant: GardenPlant? {
+        GardenService.fetchPlant(for: task.id, in: modelContext)
+    }
+
+    private var plantSpecies: PlantSpecies {
+        gardenPlant?.species ?? PlantSpecies.species(for: task.subjectCluster, taskKind: task.kind)
+    }
+
+    private var isPlantWilted: Bool {
+        gardenPlant?.isWilted ?? false
+    }
+
+    private var currentGrowthStage: PlantGrowthStage {
+        PlantGrowthStage.stage(for: sprintProgress, isWilted: isPlantWilted)
+    }
+
+    private var earnedXP: Int {
+        GardenService.calculateXP(focusedMinutes: max(1, totalSessionMinutes), isTestPrep: task.kind == .testPrep)
+    }
 
     enum Phase {
         case focus
@@ -83,6 +54,7 @@ struct FocusSessionView: View {
 
     // Modals
     @State private var showingIntervalPicker = false
+    @State private var showingAbandonConfirmation = false
 
     // Cognitive feedback & mastery
     @State private var selectedMastery: MasteryRating? = nil
@@ -137,12 +109,14 @@ struct FocusSessionView: View {
     }
 
     private func setupInitialState() {
+        let plant = GardenService.fetchPlant(for: task.id, in: modelContext) ?? GardenService.plantSeed(for: task, in: modelContext)
         sprintDurationMinutes = min(
             max(5, task.estimatedMinutes),
             max(5, services.configuration.timerFocusMinutes)
         )
         breakDurationMinutes = max(1, services.configuration.timerBreakMinutes)
-        sprintStartedAt = task.sessionStartedAt ?? services.clock.now
+        focusSecondsAccumulated = TimeInterval(plant.focusedMinutes * 60)
+        sprintStartedAt = services.clock.now
         selectedMastery = task.masteryRating
         errorNoteInput = task.errorNotes
     }
@@ -298,6 +272,8 @@ struct FocusSessionView: View {
             BotanicalRadialGauge(
                 progress: sprintProgress,
                 accentColor: accent,
+                species: plantSpecies,
+                isWilted: isPlantWilted,
                 pulse: breathingPulse,
                 stage: currentGrowthStage,
                 timeString: currentSprintRemaining.clockFormatted,
@@ -309,12 +285,12 @@ struct FocusSessionView: View {
             VStack(spacing: 5) {
                 HStack(spacing: 6) {
                     Text(currentGrowthStage.symbol)
-                    Text("STAGE \(currentGrowthStage.rawValue)/5 · \(currentGrowthStage.title)")
+                    Text("STAGE: \(currentGrowthStage.title.uppercased())")
                         .font(FGTheme.mono(.caption2, weight: .bold))
                         .foregroundStyle(accent)
                 }
 
-                Text(currentGrowthStage.subtitle)
+                Text(currentGrowthStage.description)
                     .font(FGTheme.mono(.caption2))
                     .foregroundStyle(FGTheme.muted)
                     .multilineTextAlignment(.center)
@@ -447,18 +423,66 @@ struct FocusSessionView: View {
     // MARK: - Finished Content
 
     private var finishedContent: some View {
-        VStack(spacing: 18) {
-            Text("🌳")
-                .font(.system(size: 54))
-                .scaleEffect(breathingPulse ? 1.1 : 0.95)
+        VStack(spacing: 16) {
+            // Celebration Animated Plant Centerpiece
+            ZStack {
+                Circle()
+                    .fill(plantSpecies.accentColor.opacity(0.08))
+                    .frame(width: 190, height: 190)
+                    .scaleEffect(breathingPulse ? 1.06 : 0.96)
 
-            VStack(spacing: 4) {
-                Text("HARVEST COMPLETE!")
-                    .font(FGTheme.mono(.title3, weight: .bold))
-                    .foregroundStyle(FGTheme.green)
-                Text("Your garden flourished with deep focus today.")
+                PlantCanvasView(
+                    species: plantSpecies,
+                    progress: 1.0,
+                    isWilted: false,
+                    isAnimated: true,
+                    size: 175
+                )
+            }
+            .frame(height: 175)
+
+            // Celebration Heading & Badges
+            VStack(spacing: 6) {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(FGTheme.amber)
+                    Text("HARVEST COMPLETE!")
+                        .font(FGTheme.mono(.title3, weight: .bold))
+                        .foregroundStyle(FGTheme.green)
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(FGTheme.amber)
+                }
+
+                Text("Your \(plantSpecies.displayName) blossomed through deep study.")
                     .font(FGTheme.mono(.caption))
                     .foregroundStyle(FGTheme.muted)
+
+                HStack(spacing: 10) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "bolt.fill")
+                            .foregroundStyle(FGTheme.amber)
+                        Text("+\(earnedXP) XP")
+                            .font(FGTheme.mono(.caption2, weight: .bold))
+                            .foregroundStyle(FGTheme.amber)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(FGTheme.amber.opacity(0.12))
+                    .overlay(Rectangle().stroke(FGTheme.amber.opacity(0.4), lineWidth: 1))
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "flame.fill")
+                            .foregroundStyle(FGTheme.green)
+                        Text("\(services.currentStreakDays)D STREAK")
+                            .font(FGTheme.mono(.caption2, weight: .bold))
+                            .foregroundStyle(FGTheme.green)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(FGTheme.green.opacity(0.12))
+                    .overlay(Rectangle().stroke(FGTheme.green.opacity(0.4), lineWidth: 1))
+                }
+                .padding(.top, 2)
             }
 
             VStack(spacing: 8) {
@@ -555,22 +579,64 @@ struct FocusSessionView: View {
                     completeSession()
                 }
 
-                FGButton(title: "PAUSE & LEAVE", accent: FGTheme.muted, fill: false) {
-                    services.endFocusSession(clearStart: false)
+                HStack(spacing: 10) {
+                    FGButton(title: "PAUSE & SAVE", accent: FGTheme.muted, fill: false) {
+                        pauseAndLeave()
+                    }
+
+                    FGButton(title: "ABANDON", accent: FGTheme.danger, fill: false) {
+                        showingAbandonConfirmation = true
+                    }
                 }
             } else if phase == .studyBreak {
                 FGButton(title: "LEAVE SESSION", accent: FGTheme.muted, fill: false) {
-                    services.endFocusSession(clearStart: false)
+                    pauseAndLeave()
                 }
             } else if phase == .sessionFinished {
                 FGButton(title: "CLOSE", accent: FGTheme.green) {
-                    services.endFocusSession(clearStart: false)
+                    services.endFocusSession(clearStart: true)
                 }
             }
+        }
+        .confirmationDialog(
+            "Abandon this focus session?",
+            isPresented: $showingAbandonConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Abandon & Wilt Sprout", role: .destructive) {
+                abandonAndLeave()
+            }
+            Button("Keep Focusing", role: .cancel) {}
+        } message: {
+            Text("Leaving early will cause your growing plant to wilt. Choose 'Pause & Save' instead to keep your progress safe.")
         }
     }
 
     // MARK: - Actions & Timer Logic
+
+    private func pauseAndLeave() {
+        if let plant = GardenService.fetchPlant(for: task.id, in: modelContext) {
+            GardenService.handleSessionExit(
+                plant: plant,
+                focusedMinutes: totalSessionMinutes,
+                intentionalAbandon: false,
+                context: modelContext
+            )
+        }
+        services.endFocusSession(clearStart: true)
+    }
+
+    private func abandonAndLeave() {
+        if let plant = GardenService.fetchPlant(for: task.id, in: modelContext) {
+            GardenService.handleSessionExit(
+                plant: plant,
+                focusedMinutes: totalSessionMinutes,
+                intentionalAbandon: true,
+                context: modelContext
+            )
+        }
+        services.endFocusSession(clearStart: true)
+    }
 
     private func startBreak(minutes: Int) {
         focusSecondsAccumulated += max(0, now.timeIntervalSince(sprintStartedAt))
@@ -596,16 +662,15 @@ struct FocusSessionView: View {
 
     private func completeSession() {
         focusSecondsAccumulated += max(0, now.timeIntervalSince(sprintStartedAt))
+        if let plant = GardenService.fetchPlant(for: task.id, in: modelContext) {
+            plant.focusedMinutes = max(plant.focusedMinutes, totalSessionMinutes)
+        }
         services.markTaskDone(task)
         phase = .sessionFinished
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
     // MARK: - Calculations
-
-    private var currentGrowthStage: BotanicalGrowthStage {
-        BotanicalGrowthStage.stage(for: sprintProgress)
-    }
 
     private var sprintTotalSeconds: TimeInterval {
         TimeInterval(sprintDurationMinutes * 60)
@@ -690,8 +755,10 @@ struct FocusSessionView: View {
 private struct BotanicalRadialGauge: View {
     let progress: Double
     let accentColor: Color
+    let species: PlantSpecies
+    let isWilted: Bool
     let pulse: Bool
-    let stage: BotanicalGrowthStage
+    let stage: PlantGrowthStage
     let timeString: String
     let timeSubtitle: String
 
@@ -751,16 +818,19 @@ private struct BotanicalRadialGauge: View {
                     .shadow(color: accentColor.opacity(0.45), radius: 8)
 
                 // Center Content: Plant & Countdown
-                VStack(spacing: 6) {
-                    // Botanical Mascot with breathing scale
-                    Text(stage.symbol)
-                        .font(.system(size: 42))
-                        .scaleEffect(pulse ? 1.08 : 0.94)
-                        .shadow(color: accentColor.opacity(0.3), radius: 10)
+                VStack(spacing: 2) {
+                    PlantCanvasView(
+                        species: species,
+                        progress: progress,
+                        isWilted: isWilted,
+                        isAnimated: true,
+                        size: 120
+                    )
+                    .frame(width: 120, height: 105)
 
                     // Countdown
                     Text(timeString)
-                        .font(FGTheme.mono(.largeTitle, weight: .bold))
+                        .font(FGTheme.mono(.title2, weight: .bold))
                         .foregroundStyle(.white)
                         .monospacedDigit()
                         .fgPlain()

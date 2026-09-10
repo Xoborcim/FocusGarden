@@ -296,6 +296,24 @@ final class AppServices {
         (try? SwiftDataAppStateRepository(context: context).record().hasCompletedOnboarding) ?? false
     }
 
+    var totalFocusXP: Int {
+        (try? SwiftDataAppStateRepository(context: context).record().totalFocusXP) ?? 0
+    }
+
+    var currentStreakDays: Int {
+        guard let state = try? SwiftDataAppStateRepository(context: context).record(),
+              let lastFocus = state.lastFocusDate else { return 0 }
+        let cal = configuration.calendar()
+        if cal.isDateInToday(lastFocus) || cal.isDateInYesterday(lastFocus) {
+            return state.currentStreakDays
+        }
+        return 0
+    }
+
+    var longestStreakDays: Int {
+        (try? SwiftDataAppStateRepository(context: context).record().longestStreakDays) ?? 0
+    }
+
     func completeOnboarding() {
         do {
             let state = try SwiftDataAppStateRepository(context: context).record()
@@ -380,11 +398,26 @@ final class AppServices {
         guard !task.isCompleted else { return }
         task.isCompleted = true
         task.completedAt = clock.now
+        let plant = GardenService.fetchPlant(for: task.id, in: context)
+        let elapsedMinutes = task.sessionStartedAt != nil
+            ? max(1, Int(clock.now.timeIntervalSince(task.sessionStartedAt!) / 60))
+            : 0
+        let focusedMinutes = max(plant?.focusedMinutes ?? 0, elapsedMinutes, 1)
         task.sessionStartedAt = nil
         if activeSessionTaskID == task.id {
             activeSessionTaskID = nil
         }
         reminderService.cancel(taskID: task.id)
+        if let plant {
+            _ = GardenService.completeHarvest(
+                plant: plant,
+                task: task,
+                focusedMinutes: focusedMinutes,
+                now: clock.now,
+                calendar: configuration.calendar(),
+                context: context
+            )
+        }
         try? context.save()
         refreshWidget()
         Task { await refreshReminders() }
@@ -408,13 +441,39 @@ final class AppServices {
             let courseCode = task.linkedCourse?.code ?? ""
             if !courseCode.isEmpty,
                let otherTasks = try? context.fetch(FetchDescriptor<FocusTask>()),
-               let nextTask = otherTasks.first(where: {
-                   !$0.isCompleted && $0.id != task.id && ($0.linkedCourse?.code ?? "").caseInsensitiveCompare(courseCode) == .orderedSame
-               }) {
+               let nextTask = otherTasks.filter({ !$0.isCompleted && ($0.linkedCourse?.code ?? "") == courseCode }).sorted(by: { ($0.scheduledStart ?? .distantFuture) < ($1.scheduledStart ?? .distantFuture) }).first {
                 nextTask.cognitiveMode = .errorReview
-                nextTask.masteryRating = .hard
             }
         }
+        try? context.save()
+        regenerate()
+    }
+
+    func deleteCourse(_ course: Course) {
+        for block in course.classBlocks ?? [] {
+            context.delete(block)
+        }
+        for task in course.tasks ?? [] {
+            deleteTask(task)
+        }
+        for assessment in course.assessments ?? [] {
+            context.delete(assessment)
+        }
+        context.delete(course)
+        try? context.save()
+        regenerate()
+        refreshWidget()
+    }
+
+    func deleteTask(_ task: FocusTask) {
+        if activeSessionTaskID == task.id {
+            activeSessionTaskID = nil
+        }
+        reminderService.cancel(taskID: task.id)
+        if let plant = GardenService.fetchPlant(for: task.id, in: context), !plant.isHarvested {
+            context.delete(plant)
+        }
+        context.delete(task)
         try? context.save()
         regenerate()
         refreshWidget()
@@ -444,17 +503,6 @@ final class AppServices {
         refreshWidget()
     }
 
-    func deleteTask(_ task: FocusTask) {
-        if activeSessionTaskID == task.id {
-            activeSessionTaskID = nil
-        }
-        reminderService.cancel(taskID: task.id)
-        context.delete(task)
-        try? context.save()
-        regenerate()
-        refreshWidget()
-    }
-
     func startFocusSession(_ task: FocusTask) {
         guard !task.isCompleted else { return }
         if let other = try? context.fetch(FetchDescriptor<FocusTask>()) {
@@ -467,6 +515,9 @@ final class AppServices {
         }
         activeSessionTaskID = task.id
         reminderService.cancel(taskID: task.id)
+        if GardenService.fetchPlant(for: task.id, in: context) == nil {
+            GardenService.plantSeed(for: task, in: context)
+        }
         try? context.save()
     }
 

@@ -71,15 +71,18 @@ struct RootTabView: View {
             ScheduleView()
                 .tabItem { Label("Schedule", systemImage: "calendar") }
                 .tag(0)
+            GardenView()
+                .tabItem { Label("Garden", systemImage: "leaf.fill") }
+                .tag(1)
             TasksView()
                 .tabItem { Label("Tasks", systemImage: "checklist") }
-                .tag(1)
+                .tag(2)
             CoursesView()
                 .tabItem { Label("Courses", systemImage: "books.vertical.fill") }
-                .tag(2)
+                .tag(3)
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "square.and.arrow.down") }
-                .tag(3)
+                .tag(4)
         }
         .tint(FGTheme.green)
         .preferredColorScheme(.dark)

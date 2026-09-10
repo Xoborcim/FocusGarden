@@ -6,6 +6,7 @@ enum FocusGardenSchema {
         Course.self,
         ClassBlock.self,
         Assessment.self,
-        AppStateRecord.self
+        AppStateRecord.self,
+        GardenPlant.self
     ]
 }

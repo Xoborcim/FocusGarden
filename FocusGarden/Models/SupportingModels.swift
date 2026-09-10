@@ -51,6 +51,10 @@ final class AppStateRecord {
     var timerFocusMinutes: Int = 25
     var timerBreakMinutes: Int = 5
     var chronotypeRaw: String = Chronotype.balanced.rawValue
+    var totalFocusXP: Int = 0
+    var currentStreakDays: Int = 0
+    var longestStreakDays: Int = 0
+    var lastFocusDate: Date? = nil
 
     var chronotype: Chronotype {
         get { Chronotype(rawValue: chronotypeRaw) ?? .balanced }
@@ -73,6 +77,10 @@ final class AppStateRecord {
         self.timerFocusMinutes = 25
         self.timerBreakMinutes = 5
         self.chronotypeRaw = Chronotype.balanced.rawValue
+        self.totalFocusXP = 0
+        self.currentStreakDays = 0
+        self.longestStreakDays = 0
+        self.lastFocusDate = nil
     }
 }
 
