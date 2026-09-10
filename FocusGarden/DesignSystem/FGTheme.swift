@@ -1,14 +1,15 @@
 import SwiftUI
 
 enum FGTheme {
-    static let background = Color.black
-    static let surface = Color(red: 0.05, green: 0.06, blue: 0.05)
-    static let green = Color(red: 0.20, green: 0.98, blue: 0.42)
-    static let amber = Color(red: 1.00, green: 0.75, blue: 0.12)
-    static let danger = Color(red: 1.00, green: 0.28, blue: 0.28)
-    static let muted = Color(white: 0.58)
-    static let ink = Color.black
-    static let borderWidth: CGFloat = 2
+    // Night garden palette — deep indigo base, soft sage-lavender accents, warm gold
+    static let background = Color(red: 0.06, green: 0.05, blue: 0.12)
+    static let surface = Color(red: 0.09, green: 0.08, blue: 0.16)
+    static let green = Color(red: 0.55, green: 0.82, blue: 0.60)
+    static let amber = Color(red: 0.96, green: 0.78, blue: 0.38)
+    static let danger = Color(red: 0.92, green: 0.38, blue: 0.35)
+    static let muted = Color(red: 0.58, green: 0.55, blue: 0.65)
+    static let ink = Color(red: 0.06, green: 0.05, blue: 0.12)
+    static let borderWidth: CGFloat = 1.5
 
     static func mono(_ style: Font.TextStyle, weight: Font.Weight = .regular) -> Font {
         let size: CGFloat

@@ -282,11 +282,11 @@ struct ScheduleView: View {
             case .schoolClass: return FGTheme.amber
             case .study: return FGTheme.green
             case .testPrep: return FGTheme.danger
-            case .homework: return Color(red: 0.45, green: 0.75, blue: 1.0)
+            case .homework: return Color(red: 0.52, green: 0.68, blue: 0.90)
             case .exam: return FGTheme.danger
             case .due: return FGTheme.amber
             case .completed: return FGTheme.muted
-            case .studyBreak: return Color(red: 0.95, green: 0.70, blue: 0.20)
+            case .studyBreak: return Color(red: 0.88, green: 0.72, blue: 0.35)
             }
         }()
 
