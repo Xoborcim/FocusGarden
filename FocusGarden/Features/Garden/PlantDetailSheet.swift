@@ -78,9 +78,22 @@ struct PlantDetailSheet: View {
             // Growth Stage Badge & Subtitle
             GrowthStagePill(stage: plant.growthStage, progress: plant.growthProgress)
         }
-        .padding(16)
-        .background(FGTheme.surface)
-        .overlay(Rectangle().stroke(cardBorderColor, lineWidth: FGTheme.borderWidth))
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [FGTheme.surface, FGTheme.surface.opacity(0.9)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(cardBorderColor.opacity(0.4), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.25), radius: 10, x: 0, y: 4)
     }
 
     private var cardBorderColor: Color {
@@ -116,9 +129,22 @@ struct PlantDetailSheet: View {
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
             }
         }
-        .padding(14)
-        .background(FGTheme.surface)
-        .overlay(Rectangle().stroke(FGTheme.danger.opacity(0.6), lineWidth: FGTheme.borderWidth))
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [FGTheme.surface, FGTheme.danger.opacity(0.06)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(FGTheme.danger.opacity(0.4), lineWidth: 1)
+        )
+        .shadow(color: FGTheme.danger.opacity(0.12), radius: 8, x: 0, y: 3)
     }
 
     // MARK: - Specifications Card
@@ -154,9 +180,22 @@ struct PlantDetailSheet: View {
                 )
             }
         }
-        .padding(14)
-        .background(FGTheme.surface)
-        .overlay(Rectangle().stroke(FGTheme.muted.opacity(0.3), lineWidth: 1))
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [FGTheme.surface, FGTheme.surface.opacity(0.9)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(FGTheme.muted.opacity(0.2), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 3)
     }
 
     // MARK: - Timeline Card
@@ -188,9 +227,22 @@ struct PlantDetailSheet: View {
                 }
             }
         }
-        .padding(14)
-        .background(FGTheme.surface)
-        .overlay(Rectangle().stroke(FGTheme.muted.opacity(0.3), lineWidth: 1))
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [FGTheme.surface, FGTheme.surface.opacity(0.9)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(FGTheme.muted.opacity(0.2), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 3)
     }
 
     private var removePlantButton: some View {
@@ -206,8 +258,14 @@ struct PlantDetailSheet: View {
             .foregroundStyle(FGTheme.danger)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .background(FGTheme.danger.opacity(0.08))
-            .overlay(Rectangle().stroke(FGTheme.danger.opacity(0.4), lineWidth: 1))
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(FGTheme.danger.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(FGTheme.danger.opacity(0.35), lineWidth: 1)
+            )
         }
         .padding(.top, 4)
     }
@@ -231,10 +289,16 @@ private struct RarityTag: View {
         Text(rarity.uppercased())
             .font(FGTheme.mono(.caption2, weight: .bold))
             .foregroundStyle(color)
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 9)
             .padding(.vertical, 4)
-            .background(color.opacity(0.12))
-            .overlay(Rectangle().stroke(color.opacity(0.6), lineWidth: 1))
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(color.opacity(0.12))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(color.opacity(0.4), lineWidth: 1)
+            )
     }
 }
 
@@ -243,7 +307,7 @@ private struct GrowthStagePill: View {
     let progress: Double
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             HStack(spacing: 8) {
                 Text(stage.symbol)
                     .font(.system(size: 16))
@@ -253,17 +317,37 @@ private struct GrowthStagePill: View {
                 Spacer()
                 Text("\(Int(progress * 100))%")
                     .font(FGTheme.mono(.caption, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(stageColor)
             }
 
-            Text(stage.description)
-                .font(FGTheme.mono(.caption2))
-                .foregroundStyle(FGTheme.muted)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.white.opacity(0.10))
+                        .frame(height: 5)
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [stageColor.opacity(0.7), stageColor],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: max(0, min(geo.size.width, geo.size.width * CGFloat(progress))), height: 5)
+                }
+            }
+            .frame(height: 5)
         }
-        .padding(10)
-        .background(Color.black.opacity(0.4))
-        .overlay(Rectangle().stroke(stageColor.opacity(0.4), lineWidth: 1))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.black.opacity(0.3))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(stageColor.opacity(0.3), lineWidth: 1)
+        )
     }
 
     private var stageColor: Color {

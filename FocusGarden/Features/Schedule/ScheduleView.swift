@@ -153,14 +153,14 @@ struct ScheduleView: View {
             }
             .padding(.horizontal, 16)
 
-            HStack(spacing: 0) {
+            HStack(spacing: 4) {
                 ForEach(weekDays, id: \.self) { day in
                     let selected = calendar.isDate(day, inSameDayAs: services.selectedDate)
                     let isToday = calendar.isDateInToday(day)
                     Button {
                         services.selectedDate = day
                     } label: {
-                        VStack(spacing: 6) {
+                        VStack(spacing: 5) {
                             Text(WeekdayLabel.short[calendar.component(.weekday, from: day)])
                                 .font(FGTheme.mono(.caption2, weight: .bold))
                                 .foregroundStyle(selected ? FGTheme.ink : FGTheme.muted)
@@ -170,11 +170,15 @@ struct ScheduleView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
-                        .background(selected ? FGTheme.green : Color.clear)
-                        .overlay(
-                            Rectangle()
-                                .stroke(isToday && !selected ? FGTheme.amber : Color.clear, lineWidth: 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(selected ? FGTheme.green : Color.clear)
                         )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(isToday && !selected ? FGTheme.amber.opacity(0.7) : Color.clear, lineWidth: 1.5)
+                        )
+                        .shadow(color: selected ? FGTheme.green.opacity(0.25) : Color.clear, radius: 6, x: 0, y: 2)
                     }
                     .buttonStyle(.plain)
                 }
@@ -183,7 +187,7 @@ struct ScheduleView: View {
         }
         .padding(.top, 8)
         .padding(.bottom, 10)
-        .overlay(Rectangle().stroke(FGTheme.green.opacity(0.4), lineWidth: 1), alignment: .bottom)
+        .overlay(Rectangle().stroke(FGTheme.green.opacity(0.2), lineWidth: 1), alignment: .bottom)
     }
 
     @ViewBuilder
@@ -203,8 +207,12 @@ struct ScheduleView: View {
                                 .font(FGTheme.mono(.caption, weight: .bold))
                                 .foregroundStyle(FGTheme.ink)
                                 .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(event.kind == .exam ? FGTheme.danger : FGTheme.amber)
+                                .padding(.vertical, 5)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(event.kind == .exam ? FGTheme.danger : FGTheme.amber)
+                                )
+                                .shadow(color: (event.kind == .exam ? FGTheme.danger : FGTheme.amber).opacity(0.25), radius: 4, x: 0, y: 2)
                         }
                         .buttonStyle(.plain)
                     }
@@ -212,7 +220,7 @@ struct ScheduleView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
             }
-            .overlay(Rectangle().stroke(FGTheme.amber.opacity(0.5), lineWidth: 1), alignment: .bottom)
+            .overlay(Rectangle().stroke(FGTheme.amber.opacity(0.3), lineWidth: 1), alignment: .bottom)
         }
     }
 
@@ -238,12 +246,12 @@ struct ScheduleView: View {
             ForEach(Array(range), id: \.self) { hour in
                 HStack(alignment: .top, spacing: 0) {
                     Text(hourLabel(hour))
-                        .font(FGTheme.mono(.caption2, weight: .bold))
+                        .font(FGTheme.mono(.caption2))
                         .foregroundStyle(FGTheme.muted)
                         .frame(width: gutter, alignment: .trailing)
                         .padding(.trailing, 8)
                     Rectangle()
-                        .fill(FGTheme.green.opacity(0.18))
+                        .fill(FGTheme.surface)
                         .frame(height: 1)
                 }
                 .frame(height: hourHeight, alignment: .top)
@@ -303,38 +311,66 @@ struct ScheduleView: View {
                         .font(FGTheme.mono(.caption2))
                         .foregroundStyle(FGTheme.muted)
                 }
-                .padding(.horizontal, 6)
+                .padding(.horizontal, 8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .background(FGTheme.surface)
-                .overlay(Rectangle().stroke(FGTheme.amber.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(FGTheme.surface)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(FGTheme.amber.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                )
             )
         }
 
         return AnyView(
             VStack(alignment: .leading, spacing: 2) {
-            Text(event.title)
-                .font(FGTheme.mono(.caption, weight: .bold))
-                .foregroundStyle(.white)
-                .lineLimit(2)
-            Text(timeRange(event))
-                .font(FGTheme.mono(.caption2))
-                .foregroundStyle(accent)
-            if !event.subtitle.isEmpty {
-                Text(event.subtitle)
+                Text(event.title)
+                    .font(FGTheme.mono(.caption, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                Text(timeRange(event))
                     .font(FGTheme.mono(.caption2))
-                    .foregroundStyle(FGTheme.muted)
-                    .lineLimit(1)
+                    .foregroundStyle(accent)
+                if !event.subtitle.isEmpty {
+                    Text(event.subtitle)
+                        .font(FGTheme.mono(.caption2))
+                        .foregroundStyle(FGTheme.muted)
+                        .lineLimit(1)
+                }
             }
-        }
-        .padding(6)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(FGTheme.surface)
-        .overlay(alignment: .leading) {
-            Rectangle().fill(accent).frame(width: 4)
-        }
-        .overlay(Rectangle().stroke(accent, lineWidth: 1.5))
-        .opacity(event.kind == .completed ? 0.55 : 1)
-        .drawingGroup()
+            .padding(.leading, 10)
+            .padding(.trailing, 6)
+            .padding(.vertical, 5)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                FGTheme.surface,
+                                FGTheme.surface.opacity(0.92)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .overlay(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(accent)
+                    .frame(width: 3.5)
+                    .padding(.vertical, 4)
+                    .padding(.leading, 3)
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(accent.opacity(0.28), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.22), radius: 6, x: 0, y: 2)
+            .opacity(event.kind == .completed ? 0.55 : 1)
+            .drawingGroup()
         )
     }
 

@@ -91,9 +91,24 @@ struct TasksView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(FGTheme.surface)
-        .overlay(Rectangle().stroke(FGTheme.green.opacity(0.3), lineWidth: 1), alignment: .bottom)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [FGTheme.surface, FGTheme.surface.opacity(0.9)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(FGTheme.green.opacity(0.2), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 3)
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
     }
 
     private var filterBar: some View {
@@ -108,14 +123,21 @@ struct TasksView: View {
                         .foregroundStyle(selected ? FGTheme.ink : FGTheme.muted)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 7)
-                        .background(selected ? FGTheme.green : Color.clear)
-                        .overlay(Rectangle().stroke(FGTheme.green.opacity(0.35), lineWidth: 1))
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(selected ? FGTheme.green : Color.clear)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(FGTheme.green.opacity(selected ? 0.4 : 0.18), lineWidth: 1)
+                        )
+                        .shadow(color: selected ? FGTheme.green.opacity(0.25) : Color.clear, radius: 4, x: 0, y: 2)
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
     }
 
     private var groupModeBar: some View {
@@ -137,9 +159,16 @@ struct TasksView: View {
                     .font(FGTheme.mono(.caption2, weight: .bold))
                     .foregroundStyle(selected ? FGTheme.ink : FGTheme.muted)
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(selected ? FGTheme.amber : FGTheme.surface)
-                    .overlay(Rectangle().stroke(selected ? FGTheme.amber : FGTheme.muted.opacity(0.35), lineWidth: 1))
+                    .padding(.vertical, 5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(selected ? FGTheme.amber : FGTheme.surface)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(selected ? FGTheme.amber.opacity(0.5) : FGTheme.muted.opacity(0.25), lineWidth: 1)
+                    )
+                    .shadow(color: selected ? FGTheme.amber.opacity(0.2) : Color.clear, radius: 4, x: 0, y: 2)
                 }
                 .buttonStyle(.plain)
             }
@@ -614,10 +643,16 @@ private struct TaskCard: View {
                             .font(FGTheme.mono(.caption2, weight: .bold))
                     }
                     .foregroundStyle(task.subjectCluster.accentColor)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1.5)
-                    .background(task.subjectCluster.accentColor.opacity(0.12))
-                    .overlay(Rectangle().stroke(task.subjectCluster.accentColor.opacity(0.35), lineWidth: 1))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(task.subjectCluster.accentColor.opacity(0.12))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .stroke(task.subjectCluster.accentColor.opacity(0.35), lineWidth: 1)
+                    )
 
                     if task.masteryRating == .hard {
                         HStack(spacing: 2) {
@@ -627,10 +662,16 @@ private struct TaskCard: View {
                                 .font(FGTheme.mono(.caption2, weight: .bold))
                         }
                         .foregroundStyle(FGTheme.danger)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1.5)
-                        .background(FGTheme.danger.opacity(0.12))
-                        .overlay(Rectangle().stroke(FGTheme.danger.opacity(0.4), lineWidth: 1))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(FGTheme.danger.opacity(0.12))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .stroke(FGTheme.danger.opacity(0.4), lineWidth: 1)
+                        )
                     }
 
                     if task.isSoftLocked {
@@ -644,10 +685,16 @@ private struct TaskCard: View {
                     Text(durationLabel)
                         .font(FGTheme.mono(.caption2, weight: .bold))
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 6)
+                        .padding(.horizontal, 7)
                         .padding(.vertical, 2)
-                        .background(FGTheme.surface)
-                        .overlay(Rectangle().stroke(accent.opacity(0.4), lineWidth: 1))
+                        .background(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(FGTheme.surface)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .stroke(accent.opacity(0.3), lineWidth: 1)
+                        )
                 }
 
                 // Title & timing
@@ -694,9 +741,13 @@ private struct TaskCard: View {
                                 }
                                 .font(FGTheme.mono(.caption2, weight: .bold))
                                 .foregroundStyle(FGTheme.ink)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(FGTheme.green)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(FGTheme.green)
+                                )
+                                .shadow(color: FGTheme.green.opacity(0.25), radius: 4, x: 0, y: 2)
                             }
                             .buttonStyle(.plain)
                         } else {
@@ -707,9 +758,13 @@ private struct TaskCard: View {
                                 }
                                 .font(FGTheme.mono(.caption2, weight: .bold))
                                 .foregroundStyle(FGTheme.ink)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(accent)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(accent)
+                                )
+                                .shadow(color: accent.opacity(0.25), radius: 4, x: 0, y: 2)
                             }
                             .buttonStyle(.plain)
                         }

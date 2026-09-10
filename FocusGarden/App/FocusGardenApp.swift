@@ -93,17 +93,33 @@ struct RootTabView: View {
 
 struct LaunchView: View {
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 22) {
             Spacer()
-            Image(systemName: "leaf.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(FGTheme.green)
+            ZStack {
+                Circle()
+                    .fill(FGTheme.green.opacity(0.15))
+                    .frame(width: 120, height: 120)
+                    .blur(radius: 22)
+
+                Image(systemName: "leaf.fill")
+                    .font(.system(size: 54))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [FGTheme.green, FGTheme.green.opacity(0.82)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .shadow(color: FGTheme.green.opacity(0.35), radius: 14, x: 0, y: 4)
+            }
+
             Text("FocusGarden")
-                .font(FGTheme.mono(.title, weight: .bold))
+                .font(FGTheme.rounded(.title, weight: .bold))
                 .foregroundStyle(.white)
+
             ProgressView()
                 .tint(FGTheme.green)
-                .scaleEffect(1.2)
+                .scaleEffect(1.1)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

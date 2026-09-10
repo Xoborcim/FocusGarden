@@ -195,10 +195,25 @@ private struct GardenMetricsHeader: View {
                 )
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(FGTheme.surface)
-        .overlay(Rectangle().stroke(FGTheme.green.opacity(0.3), lineWidth: 1), alignment: .bottom)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [FGTheme.surface, FGTheme.surface.opacity(0.9)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(FGTheme.green.opacity(0.2), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.22), radius: 8, x: 0, y: 3)
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
     }
 
     private func metricCell(title: String, value: String, accent: Color) -> some View {
@@ -232,8 +247,15 @@ private struct GardenFilterBar: View {
                         .foregroundStyle(isSelected ? FGTheme.ink : FGTheme.muted)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 7)
-                        .background(isSelected ? FGTheme.green : Color.clear)
-                        .overlay(Rectangle().stroke(FGTheme.green.opacity(0.35), lineWidth: 1))
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(isSelected ? FGTheme.green : Color.clear)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(FGTheme.green.opacity(isSelected ? 0.4 : 0.18), lineWidth: 1)
+                        )
+                        .shadow(color: isSelected ? FGTheme.green.opacity(0.25) : Color.clear, radius: 4, x: 0, y: 2)
                 }
                 .buttonStyle(.plain)
             }
@@ -267,10 +289,16 @@ private struct GardenPotCard: View {
                     Text(plant.courseCode.isEmpty ? "FOCUS" : plant.courseCode)
                         .font(FGTheme.mono(.caption2, weight: .bold))
                         .foregroundStyle(plant.species.accentColor)
-                        .padding(.horizontal, 5)
+                        .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(plant.species.accentColor.opacity(0.12))
-                        .overlay(Rectangle().stroke(plant.species.accentColor.opacity(0.35), lineWidth: 1))
+                        .background(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(plant.species.accentColor.opacity(0.12))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .stroke(plant.species.accentColor.opacity(0.35), lineWidth: 1)
+                        )
                         .lineLimit(1)
 
                     Spacer(minLength: 2)
@@ -297,9 +325,25 @@ private struct GardenPotCard: View {
                 // Progress Indicator or Mature Checkmark
                 statusIndicator
             }
-            .padding(10)
-            .background(FGTheme.surface)
-            .overlay(Rectangle().stroke(borderColor, lineWidth: FGTheme.borderWidth))
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                FGTheme.surface,
+                                FGTheme.surface.opacity(0.88)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(borderColor, lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.24), radius: 8, x: 0, y: 3)
         }
         .buttonStyle(.plain)
     }
@@ -328,10 +372,10 @@ private struct GardenPotCard: View {
             VStack(spacing: 3) {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        Rectangle()
+                        Capsule()
                             .fill(Color.white.opacity(0.1))
                             .frame(height: 4)
-                        Rectangle()
+                        Capsule()
                             .fill(plant.species.accentColor)
                             .frame(width: geo.size.width * CGFloat(plant.growthProgress), height: 4)
                     }

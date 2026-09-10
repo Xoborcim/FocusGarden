@@ -45,10 +45,16 @@ struct CoursesView: View {
                                             .font(FGTheme.mono(.caption2, weight: .bold))
                                     }
                                     .foregroundStyle(course.subjectCluster.accentColor)
-                                    .padding(.horizontal, 5)
+                                    .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(course.subjectCluster.accentColor.opacity(0.12))
-                                    .overlay(Rectangle().stroke(course.subjectCluster.accentColor.opacity(0.35), lineWidth: 1))
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                            .fill(course.subjectCluster.accentColor.opacity(0.12))
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                            .stroke(course.subjectCluster.accentColor.opacity(0.35), lineWidth: 1)
+                                    )
                                 }
 
                                 Text(summary(for: course))
@@ -125,10 +131,16 @@ struct CourseDetailView: View {
                                         .font(FGTheme.mono(.caption2, weight: .bold))
                                 }
                                 .foregroundStyle(course.subjectCluster.accentColor)
-                                .padding(.horizontal, 6)
+                                .padding(.horizontal, 7)
                                 .padding(.vertical, 3)
-                                .background(course.subjectCluster.accentColor.opacity(0.12))
-                                .overlay(Rectangle().stroke(course.subjectCluster.accentColor.opacity(0.35), lineWidth: 1))
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .fill(course.subjectCluster.accentColor.opacity(0.12))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .stroke(course.subjectCluster.accentColor.opacity(0.35), lineWidth: 1)
+                                )
                             }
                             Text("Difficulty")
                                 .font(FGTheme.mono(.caption, weight: .bold))
