@@ -303,13 +303,42 @@ final class AppServices {
         regenerate()
     }
 
+    private var activeRegenerationTask: Task<Void, Never>?
+    var isRegenerating = false
+
     func regenerate() {
-        do {
-            lastPlan = try scheduleManager.regenerate(context: context, now: clock.now)
-            refreshWidget()
-            Task { await refreshReminders() }
-        } catch {
-            lastPlan = nil
+        activeRegenerationTask?.cancel()
+        isRegenerating = true
+        let config = configuration
+        let now = clock.now
+
+        activeRegenerationTask = Task { [weak self, container] in
+            // Short debounce to collapse rapid consecutive mutations
+            try? await Task.sleep(nanoseconds: 40_000_000)
+            guard !Task.isCancelled else { return }
+
+            let planResult: SchedulePlan? = await Task.detached {
+                guard !Task.isCancelled else { return nil }
+                do {
+                    let bgContext = ModelContext(container)
+                    let manager = ScheduleManager(
+                        engine: AutoSchedulingEngine(),
+                        planner: StudyPlanner(),
+                        configuration: config
+                    )
+                    return try manager.regenerate(context: bgContext, now: now)
+                } catch {
+                    return nil
+                }
+            }.value
+
+            guard !Task.isCancelled else { return }
+
+            guard let self else { return }
+            self.lastPlan = planResult
+            self.isRegenerating = false
+            self.refreshWidget()
+            await self.refreshReminders()
         }
     }
 

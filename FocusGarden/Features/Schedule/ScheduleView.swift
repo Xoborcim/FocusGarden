@@ -90,7 +90,13 @@ struct ScheduleView: View {
     }
 
     private var toolbarButtons: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
+            if services.isRegenerating {
+                ProgressView()
+                    .tint(FGTheme.green)
+                    .scaleEffect(0.7)
+            }
+
             Button("Today") {
                 services.selectedDate = services.clock.now
             }
