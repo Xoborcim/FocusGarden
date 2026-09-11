@@ -1,3 +1,4 @@
+#if !SKIP
 import Foundation
 import UserNotifications
 
@@ -6,7 +7,15 @@ struct StudyReminderService: Sendable {
     private static let categoryID = "study-reminder"
     private static let idPrefix = "study-task-"
 
+    private var isSupportedEnvironment: Bool {
+        guard let id = Bundle.main.bundleIdentifier, !id.isEmpty, !id.contains("xctest") else {
+            return false
+        }
+        return true
+    }
+
     func requestAuthorization() async -> Bool {
+        guard isSupportedEnvironment else { return false }
         let center = UNUserNotificationCenter.current()
         do {
             return try await center.requestAuthorization(options: [.alert, .sound, .badge])
@@ -16,6 +25,7 @@ struct StudyReminderService: Sendable {
     }
 
     func refresh(tasks: [FocusTask], now: Date) async {
+        guard isSupportedEnvironment else { return }
         let center = UNUserNotificationCenter.current()
         let pending = await center.pendingNotificationRequests()
         let stale = pending
@@ -62,3 +72,18 @@ struct StudyReminderService: Sendable {
             .removePendingNotificationRequests(withIdentifiers: [Self.idPrefix + taskID.uuidString])
     }
 }
+#else
+import Foundation
+
+struct StudyReminderService: Sendable {
+    static let leadMinutes = 10
+
+    func requestAuthorization() async -> Bool {
+        return false
+    }
+
+    func refresh(tasks: [FocusTask], now: Date) async {}
+
+    func cancel(taskID: UUID) {}
+}
+#endif

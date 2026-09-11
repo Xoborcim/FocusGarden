@@ -168,24 +168,28 @@ struct FGScreen<Content: View>: View {
                 content
             }
             .navigationTitle(title)
+            #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 if let trailing {
-                    ToolbarItem(placement: .topBarTrailing) { trailing }
+                    ToolbarItem(placement: .primaryAction) { trailing }
                 }
             }
+            #if !os(macOS)
             .toolbarBackground(FGTheme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            #endif
         }
     }
 }
 
 // MARK: - Shared Utilities
 
-extension Collection {
+extension Array {
     /// Safely accesses the element at the specified index, returning `nil` if out of bounds.
-    subscript(safe index: Index) -> Element? {
+    subscript(safe index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil
     }
 }

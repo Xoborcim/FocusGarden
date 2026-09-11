@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Golden amber bud -->
+    <path
+        android:fillColor="#F5C761"
+        android:pathData="M60.5,30 C63.5,33 65.5,37 64,41 C62.5,45 58,45 57,41 C56,37 57.5,33 60.5,30 Z"/>
+
+    <!-- Sage green stem, sepals, and leaves -->
+    <path
+        android:fillColor="#8CD199"
+        android:pathData="M60.5,41 C58,43 57,46 56,51 L53,74 C52.5,76 54.5,76 55,74 L58,52 C59,48 60.5,45 63,43 Z"/>
+    <path
+        android:fillColor="#8CD199"
+        android:pathData="M54,54 C42,47 33,52 35,63 C43,67 52,60 54,54 Z"/>
+    <path
+        android:fillColor="#8CD199"
+        android:pathData="M57,51 C66,45 74,49 72,60 C65,64 57,58 57,51 Z"/>
+</vector>

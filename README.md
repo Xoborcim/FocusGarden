@@ -1,36 +1,27 @@
-# FocusGarden
+# Sprout
 
-iOS 17+ SwiftUI app that turns a school `.ics` into a week of classes and study blocks.
+**Make space. Do the work. Grow.**
 
-Import a timetable. Class times stay fixed. Study slots are placed around them. Tests and homework get extra blocks before they’re due.
+A fast, calm, manual-first student focus and behavioral tracking tool.
+
+Sprout is built around the philosophy: **"I live first. I log afterward."**
+
+Instead of managing to-do lists, task queues, and artificial schedules, Sprout acts as a behavioral mirror:
+- **Quick Logging**: Record activities, focus levels, and AI assistance in 5–10 seconds.
+- **Reality Over Plans**: See where your time actually went across classes, focused study, exercise, and leisure.
+- **AI Dependence Tracking**: Monitor independent problem-solving vs. AI-assisted work without judgment.
+- **Cumulative Garden**: Real botanical growth earned through genuine focused effort, without streaks or guilt mechanics.
 
 ## Stack
 
-SwiftUI, SwiftData, Observation (`@Observable`). Local-first. No backend.
+SwiftUI, SwiftData, Observation (`@Observable`). Multiplatform with [Skip](https://skip.tools). Local-first. No backend.
 
-## Tabs
+## Primary Tabs
 
-Schedule · Courses · Settings
-
-## Requirements
-
-- Xcode 16+ (iOS 17 deployment target)
-- iOS 17 simulator or device
-
-## Getting started
-
-```bash
-open FocusGarden.xcodeproj
-```
-
-Select an iPhone simulator and run the **FocusGarden** scheme. Use **FocusGarden-Sideload** when you need a build without CloudKit / App Groups.
-
-## How study time is chosen
-
-- Weekly study for each course is **1.5× weekly class time** (at least 60 minutes, at most 6 hours), split into 15–90 minute blocks.
-- Tests get extra prep (90–240 minutes) before the exam, never overlapping the exam itself.
-- Homework gets a work block (90–150 minutes) before the due date.
-- Nothing is placed on top of a class.
+- **Today**: Real-time summary and observational timeline (anti-schedule).
+- **Log**: 5-second quick capture with recent activity chips.
+- **Insights**: Behavior trends, independent study ratios, and weekly reflection.
+- **Garden**: Botanical sanctuary representing accumulated focus.
 
 ## Tests
 

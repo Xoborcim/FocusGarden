@@ -1,5 +1,7 @@
 import Foundation
+#if !SKIP
 import SwiftData
+#endif
 
 @Model
 final class ClassBlock {

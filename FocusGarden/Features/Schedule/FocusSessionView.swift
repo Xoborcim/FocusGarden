@@ -1,17 +1,31 @@
+#if !SKIP
 import SwiftData
+#endif
 import SwiftUI
+#if !SKIP && canImport(UIKit)
 import UIKit
+#endif
 
 // MARK: - FocusSessionView
 
 struct FocusSessionView: View {
-    @Environment(AppServices.self) private var services
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \FocusTask.scheduledStart) private var allTasks: [FocusTask]
+    @Environment(AppServices.self) var services
+    #if !SKIP
+    @Environment(\.modelContext) var modelContext: ModelContext
+    #endif
+    @Query(sort: \FocusTask.scheduledStart) var allTasks: [FocusTask]
     let task: FocusTask
 
+    init(task: FocusTask) {
+        self.task = task
+    }
+
     private var gardenPlant: GardenPlant? {
+        #if !SKIP
         GardenService.fetchPlant(for: task.id, in: modelContext)
+        #else
+        nil
+        #endif
     }
 
     private var plantSpecies: PlantSpecies {
@@ -36,29 +50,29 @@ struct FocusSessionView: View {
         case sessionFinished
     }
 
-    @State private var phase: Phase = .focus
-    @State private var now = Date()
+    @State var phase: Phase = .focus
+    @State var now = Date()
 
     // Focus sprint tracking
-    @State private var sprintDurationMinutes: Int = 25
-    @State private var sprintStartedAt: Date = Date()
-    @State private var focusSecondsAccumulated: TimeInterval = 0
-    @State private var breathingPulse = false
+    @State var sprintDurationMinutes: Int = 25
+    @State var sprintStartedAt: Date = Date()
+    @State var focusSecondsAccumulated: TimeInterval = 0
+    @State var breathingPulse = false
 
     // Break tracking
-    @State private var breakDurationMinutes: Int = 5
-    @State private var breakStartedAt: Date = Date()
-    @State private var breakSecondsAccumulated: TimeInterval = 0
-    @State private var isTransitionBreak = false
-    @State private var breaksTakenCount: Int = 0
+    @State var breakDurationMinutes: Int = 5
+    @State var breakStartedAt: Date = Date()
+    @State var breakSecondsAccumulated: TimeInterval = 0
+    @State var isTransitionBreak = false
+    @State var breaksTakenCount: Int = 0
 
     // Modals
-    @State private var showingIntervalPicker = false
-    @State private var showingAbandonConfirmation = false
+    @State var showingIntervalPicker = false
+    @State var showingAbandonConfirmation = false
 
     // Cognitive feedback & mastery
-    @State private var selectedMastery: MasteryRating? = nil
-    @State private var errorNoteInput: String = ""
+    @State var selectedMastery: MasteryRating? = nil
+    @State var errorNoteInput: String = ""
 
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -109,13 +123,17 @@ struct FocusSessionView: View {
     }
 
     private func setupInitialState() {
+        #if !SKIP
         let plant = GardenService.fetchPlant(for: task.id, in: modelContext) ?? GardenService.plantSeed(for: task, in: modelContext)
+        focusSecondsAccumulated = TimeInterval(Double(plant.focusedMinutes * 60))
+        #else
+        focusSecondsAccumulated = 0.0
+        #endif
         sprintDurationMinutes = min(
             max(5, task.estimatedMinutes),
             max(5, services.configuration.timerFocusMinutes)
         )
         breakDurationMinutes = max(1, services.configuration.timerBreakMinutes)
-        focusSecondsAccumulated = TimeInterval(plant.focusedMinutes * 60)
         sprintStartedAt = services.clock.now
         selectedMastery = task.masteryRating
         errorNoteInput = task.errorNotes
@@ -593,6 +611,7 @@ struct FocusSessionView: View {
     // MARK: - Actions & Timer Logic
 
     private func pauseAndLeave() {
+        #if !SKIP
         if let plant = GardenService.fetchPlant(for: task.id, in: modelContext) {
             GardenService.handleSessionExit(
                 plant: plant,
@@ -601,10 +620,12 @@ struct FocusSessionView: View {
                 context: modelContext
             )
         }
+        #endif
         services.endFocusSession(clearStart: true)
     }
 
     private func abandonAndLeave() {
+        #if !SKIP
         if let plant = GardenService.fetchPlant(for: task.id, in: modelContext) {
             GardenService.handleSessionExit(
                 plant: plant,
@@ -613,53 +634,64 @@ struct FocusSessionView: View {
                 context: modelContext
             )
         }
+        #endif
         services.endFocusSession(clearStart: true)
     }
 
     private func startBreak(minutes: Int) {
-        focusSecondsAccumulated += max(0, now.timeIntervalSince(sprintStartedAt))
+        focusSecondsAccumulated += max(0.0, now.timeIntervalSince(sprintStartedAt))
         breakDurationMinutes = max(1, minutes)
         breakStartedAt = now
         breaksTakenCount += 1
         phase = .studyBreak
+        #if !SKIP && canImport(UIKit)
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        #endif
     }
 
     private func extendBreak(minutes: Int) {
         breakDurationMinutes += minutes
+        #if !SKIP && canImport(UIKit)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        #endif
     }
 
     private func endBreak() {
-        breakSecondsAccumulated += max(0, now.timeIntervalSince(breakStartedAt))
+        breakSecondsAccumulated += max(0.0, now.timeIntervalSince(breakStartedAt))
         sprintStartedAt = now
         phase = .focus
         isTransitionBreak = false
+        #if !SKIP && canImport(UIKit)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        #endif
     }
 
     private func completeSession() {
-        focusSecondsAccumulated += max(0, now.timeIntervalSince(sprintStartedAt))
+        focusSecondsAccumulated += max(0.0, now.timeIntervalSince(sprintStartedAt))
+        #if !SKIP
         if let plant = GardenService.fetchPlant(for: task.id, in: modelContext) {
             plant.focusedMinutes = max(plant.focusedMinutes, totalSessionMinutes)
         }
+        #endif
         services.markTaskDone(task)
         phase = .sessionFinished
+        #if !SKIP && canImport(UIKit)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        #endif
     }
 
     // MARK: - Calculations
 
     private var sprintTotalSeconds: TimeInterval {
-        TimeInterval(sprintDurationMinutes * 60)
+        TimeInterval(Double(sprintDurationMinutes * 60))
     }
 
     private var currentSprintElapsed: TimeInterval {
-        max(0, now.timeIntervalSince(sprintStartedAt))
+        max(0.0, now.timeIntervalSince(sprintStartedAt))
     }
 
     private var currentSprintRemaining: TimeInterval {
-        max(0, sprintTotalSeconds - currentSprintElapsed)
+        max(0.0, sprintTotalSeconds - currentSprintElapsed)
     }
 
     private var sprintProgress: Double {
@@ -674,23 +706,23 @@ struct FocusSessionView: View {
     }
 
     private var breakTotalSeconds: TimeInterval {
-        TimeInterval(breakDurationMinutes * 60)
+        TimeInterval(Double(breakDurationMinutes * 60))
     }
 
     private var currentBreakElapsed: TimeInterval {
-        max(0, now.timeIntervalSince(breakStartedAt))
+        max(0.0, now.timeIntervalSince(breakStartedAt))
     }
 
     private var currentBreakRemaining: TimeInterval {
-        max(0, breakTotalSeconds - currentBreakElapsed)
+        max(0.0, breakTotalSeconds - currentBreakElapsed)
     }
 
     private var totalSessionMinutes: Int {
-        Int((focusSecondsAccumulated + (phase == .focus ? currentSprintElapsed : 0)) / 60)
+        Int((focusSecondsAccumulated + (phase == .focus ? currentSprintElapsed : 0.0)) / 60.0)
     }
 
     private var totalBreakMinutes: Int {
-        Int((breakSecondsAccumulated + (phase == .studyBreak ? currentBreakElapsed : 0)) / 60)
+        Int((breakSecondsAccumulated + (phase == .studyBreak ? currentBreakElapsed : 0.0)) / 60.0)
     }
 
     private var taskPlannedMinutes: Int {
@@ -730,7 +762,7 @@ struct FocusSessionView: View {
 
 // MARK: - Botanical Radial Gauge Component
 
-private struct BotanicalRadialGauge: View {
+struct BotanicalRadialGauge: View {
     let progress: Double
     let accentColor: Color
     let species: PlantSpecies
@@ -752,14 +784,14 @@ private struct BotanicalRadialGauge: View {
                 // Background Track
                 Circle()
                     .stroke(FGTheme.surface, lineWidth: 10)
-                    .overlay(Circle().stroke(accentColor.opacity(0.12), lineWidth: 1))
+                    .overlay(Circle().stroke(accentColor.opacity(0.12), lineWidth: 1.0))
 
                 // Radial Tick Marks
                 ForEach(0..<tickCount, id: \.self) { tick in
                     let isMajor = tick % 5 == 0
                     let angle = Angle.degrees(Double(tick) / Double(tickCount) * 360.0 - 90.0)
-                    let tickLen: CGFloat = isMajor ? 8 : 4
-                    let innerR = radius - 14
+                    let tickLen: CGFloat = isMajor ? 8.0 : 4.0
+                    let innerR = radius - 14.0
                     let outerR = innerR + tickLen
 
                     Path { path in
@@ -772,7 +804,7 @@ private struct BotanicalRadialGauge: View {
                     }
                     .stroke(
                         isMajor ? accentColor.opacity(0.6) : FGTheme.muted.opacity(0.25),
-                        lineWidth: isMajor ? 1.5 : 1
+                        lineWidth: isMajor ? 1.5 : 1.0
                     )
                 }
 
@@ -810,7 +842,6 @@ private struct BotanicalRadialGauge: View {
                     Text(timeString)
                         .font(FGTheme.mono(.title2, weight: .bold))
                         .foregroundStyle(.white)
-                        .monospacedDigit()
                         .fgPlain()
 
                     Text(timeSubtitle)
@@ -828,7 +859,7 @@ private struct BotanicalRadialGauge: View {
 
 // MARK: - Guided Breathing Centerpiece Component
 
-private struct GuidedBreathingCenterpiece: View {
+struct GuidedBreathingCenterpiece: View {
     let elapsedSeconds: TimeInterval
     let remainingSeconds: TimeInterval
     let totalBreakSeconds: TimeInterval
@@ -839,21 +870,20 @@ private struct GuidedBreathingCenterpiece: View {
     // 8..<12s: Exhale
     // 12..<16s: Rest
     private var cycleSeconds: Double {
-        elapsedSeconds.truncatingRemainder(dividingBy: 16.0)
+        elapsedSeconds - Double(Int(elapsedSeconds / 16.0)) * 16.0
     }
 
     private var breathPhase: (title: String, cue: String, scale: CGFloat, color: Color) {
-        switch cycleSeconds {
-        case 0..<4:
+        if cycleSeconds < 4.0 {
             let pct = cycleSeconds / 4.0
-            return ("INHALE", "Breathe in deeply through nose", 0.85 + (0.35 * pct), FGTheme.amber)
-        case 4..<8:
-            return ("HOLD", "Hold breath gently & relax", 1.20, Color(red: 1.0, green: 0.85, blue: 0.35))
-        case 8..<12:
+            return ("INHALE", "Breathe in deeply through nose", CGFloat(0.85 + (0.35 * pct)), FGTheme.amber)
+        } else if cycleSeconds < 8.0 {
+            return ("HOLD", "Hold breath gently & relax", CGFloat(1.20), Color(red: 1.0, green: 0.85, blue: 0.35))
+        } else if cycleSeconds < 12.0 {
             let pct = (cycleSeconds - 8.0) / 4.0
-            return ("EXHALE", "Slow, steady release through mouth", 1.20 - (0.35 * pct), FGTheme.amber)
-        default:
-            return ("REST", "Rest before the next breath", 0.85, Color(white: 0.6))
+            return ("EXHALE", "Slow, steady release through mouth", CGFloat(1.20 - (0.35 * pct)), FGTheme.amber)
+        } else {
+            return ("REST", "Rest before the next breath", CGFloat(0.85), Color(white: 0.6))
         }
     }
 
@@ -870,7 +900,7 @@ private struct GuidedBreathingCenterpiece: View {
                 // Track
                 Circle()
                     .stroke(FGTheme.surface, lineWidth: 8)
-                    .overlay(Circle().stroke(FGTheme.amber.opacity(0.2), lineWidth: 1))
+                    .overlay(Circle().stroke(FGTheme.amber.opacity(0.2), lineWidth: 1.0))
 
                 // Overall Break Progress Ring
                 let progress = min(1.0, elapsedSeconds / max(1.0, totalBreakSeconds))
@@ -907,7 +937,6 @@ private struct GuidedBreathingCenterpiece: View {
                     Text(remainingSeconds.clockFormatted)
                         .font(FGTheme.mono(.title, weight: .bold))
                         .foregroundStyle(.white)
-                        .monospacedDigit()
                         .fgPlain()
                         .padding(.top, 2)
 
@@ -923,7 +952,7 @@ private struct GuidedBreathingCenterpiece: View {
 
 // MARK: - Mindful Rest Prompt Card
 
-private struct MindfulRestPromptCard: View {
+struct MindfulRestPromptCard: View {
     let elapsedSeconds: TimeInterval
 
     private let prompts: [(icon: String, text: String)] = [
@@ -955,20 +984,20 @@ private struct MindfulRestPromptCard: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(FGTheme.surface)
-        .overlay(Rectangle().stroke(FGTheme.amber.opacity(0.35), lineWidth: 1))
+        .overlay(Rectangle().stroke(FGTheme.amber.opacity(0.35), lineWidth: 1.0))
     }
 }
 
 // MARK: - Timer Interval Config Sheet
 
-private struct TimerIntervalConfigSheet: View {
+struct TimerIntervalConfigSheet: View {
     @Binding var sprintMinutes: Int
     @Binding var breakMinutes: Int
     let onSave: (Int, Int) -> Void
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dismiss) var dismiss
 
-    @State private var tempSprint: Int = 25
-    @State private var tempBreak: Int = 5
+    @State var tempSprint: Int = 25
+    @State var tempBreak: Int = 5
 
     private let sprintPresets = [15, 20, 25, 30, 45, 50, 60]
     private let breakPresets = [3, 5, 10, 15]
@@ -1009,7 +1038,7 @@ private struct TimerIntervalConfigSheet: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 8)
                                 .background(selected ? FGTheme.green : FGTheme.surface)
-                                .overlay(Rectangle().stroke(FGTheme.green.opacity(0.5), lineWidth: 1))
+                                .overlay(Rectangle().stroke(FGTheme.green.opacity(0.5), lineWidth: 1.0))
                                 .buttonStyle(.plain)
                             }
                         }
@@ -1032,7 +1061,7 @@ private struct TimerIntervalConfigSheet: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 8)
                                 .background(selected ? FGTheme.amber : FGTheme.surface)
-                                .overlay(Rectangle().stroke(FGTheme.amber.opacity(0.5), lineWidth: 1))
+                                .overlay(Rectangle().stroke(FGTheme.amber.opacity(0.5), lineWidth: 1.0))
                                 .buttonStyle(.plain)
                             }
                         }
@@ -1050,8 +1079,10 @@ private struct TimerIntervalConfigSheet: View {
                 .padding(20)
             }
             .navigationTitle("TIMER CADENCE")
+            #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -1081,7 +1112,7 @@ private struct TimerIntervalConfigSheet: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
             .background(selected ? FGTheme.green : FGTheme.surface)
-            .overlay(Rectangle().stroke(FGTheme.green.opacity(0.5), lineWidth: 1))
+            .overlay(Rectangle().stroke(FGTheme.green.opacity(0.5), lineWidth: 1.0))
         }
         .buttonStyle(.plain)
     }
@@ -1089,7 +1120,7 @@ private struct TimerIntervalConfigSheet: View {
 
 // MARK: - Mastery Feedback Card
 
-private struct MasteryFeedbackCard: View {
+struct MasteryFeedbackCard: View {
     let task: FocusTask
     let services: AppServices
     @Binding var selectedMastery: MasteryRating?
@@ -1123,24 +1154,27 @@ private struct MasteryFeedbackCard: View {
                     .font(FGTheme.mono(.caption2))
                     .foregroundStyle(.white)
                     .onSubmit {
-                        services.recordSessionFeedback(for: task, rating: selectedMastery ?? .good, errorNotes: errorNoteInput)
+                        let rating = selectedMastery ?? MasteryRating.good
+                        services.recordSessionFeedback(for: task, rating: rating, errorNotes: errorNoteInput)
                     }
             }
             .padding(6)
             .background(FGTheme.surface)
-            .overlay(Rectangle().stroke(FGTheme.muted.opacity(0.3), lineWidth: 1))
+            .overlay(Rectangle().stroke(FGTheme.muted.opacity(0.3), lineWidth: 1.0))
         }
         .padding(12)
         .background(FGTheme.surface)
-        .overlay(Rectangle().stroke(FGTheme.green.opacity(0.25), lineWidth: 1))
+        .overlay(Rectangle().stroke(FGTheme.green.opacity(0.25), lineWidth: 1.0))
     }
 
     private func ratingColor(for rating: MasteryRating) -> Color {
+        let col: Color
         switch rating {
-        case .hard: return FGTheme.danger
-        case .good: return FGTheme.amber
-        case .mastered: return FGTheme.green
+        case .hard: col = FGTheme.danger
+        case .good: col = FGTheme.amber
+        case .mastered: col = FGTheme.green
         }
+        return col
     }
 
     private func masteryButton(for rating: MasteryRating) -> some View {
@@ -1160,7 +1194,7 @@ private struct MasteryFeedbackCard: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
             .background(isSelected ? color : FGTheme.surface)
-            .overlay(Rectangle().stroke(color.opacity(0.6), lineWidth: 1))
+            .overlay(Rectangle().stroke(color.opacity(0.6), lineWidth: 1.0))
         }
         .buttonStyle(.plain)
     }

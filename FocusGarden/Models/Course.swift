@@ -1,5 +1,7 @@
 import Foundation
+#if !SKIP
 import SwiftData
+#endif
 
 @Model
 final class Course {
@@ -9,6 +11,7 @@ final class Course {
     @Relationship(deleteRule: .cascade, inverse: \FocusTask.linkedCourse) var tasks: [FocusTask]?
     @Relationship(deleteRule: .cascade, inverse: \ClassBlock.course) var classBlocks: [ClassBlock]?
     @Relationship(deleteRule: .cascade, inverse: \Assessment.course) var assessments: [Assessment]?
+    @Relationship(deleteRule: .nullify, inverse: \ActivityLog.linkedCourse) var activityLogs: [ActivityLog]?
 
     var colorIndex: Int = 0
     var createdAt: Date = Date()
@@ -23,6 +26,7 @@ final class Course {
         self.tasks = []
         self.classBlocks = []
         self.assessments = []
+        self.activityLogs = []
         self.createdAt = Date()
         self.difficulty = Self.clampedDifficulty(difficulty)
     }

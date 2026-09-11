@@ -1,12 +1,16 @@
+#if !SKIP
 import SwiftData
+#endif
 import SwiftUI
 
 // MARK: - PlantDetailSheet
 
 struct PlantDetailSheet: View {
     @Bindable var plant: GardenPlant
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
+    #if !SKIP
+    @Environment(\.modelContext) var modelContext: ModelContext
+    #endif
+    @Environment(\.dismiss) var dismiss
 
     var body: some View {
         NavigationStack {
@@ -28,8 +32,10 @@ struct PlantDetailSheet: View {
                 }
             }
             .navigationTitle("PLANT DOSSIER")
+            #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {
@@ -125,8 +131,12 @@ struct PlantDetailSheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             FGButton(title: "REVIVE SPROUT", accent: FGTheme.green) {
+                #if !SKIP
                 GardenService.revivePlant(plant: plant, context: modelContext)
+                #if canImport(UIKit)
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
+                #endif
+                #endif
             }
         }
         .padding(16)
@@ -247,7 +257,9 @@ struct PlantDetailSheet: View {
 
     private var removePlantButton: some View {
         Button(role: .destructive) {
+            #if !SKIP
             GardenService.deletePlant(plant: plant, context: modelContext)
+            #endif
             dismiss()
         } label: {
             HStack(spacing: 8) {
@@ -273,7 +285,7 @@ struct PlantDetailSheet: View {
 
 // MARK: - Helper Components
 
-private struct RarityTag: View {
+struct RarityTag: View {
     let rarity: String
 
     var color: Color {
@@ -302,7 +314,7 @@ private struct RarityTag: View {
     }
 }
 
-private struct GrowthStagePill: View {
+struct GrowthStagePill: View {
     let stage: PlantGrowthStage
     let progress: Double
 
@@ -333,7 +345,7 @@ private struct GrowthStagePill: View {
                                 endPoint: .trailing
                             )
                         )
-                        .frame(width: max(0, min(geo.size.width, geo.size.width * CGFloat(progress))), height: 5)
+                        .frame(width: max(CGFloat(0), min(geo.size.width, geo.size.width * CGFloat(progress))), height: 5)
                 }
             }
             .frame(height: 5)
@@ -362,7 +374,7 @@ private struct GrowthStagePill: View {
     }
 }
 
-private struct SpecRow: View {
+struct SpecRow: View {
     let label: String
     let value: String
     var valueColor: Color = .white

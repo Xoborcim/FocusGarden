@@ -1,5 +1,7 @@
 import Foundation
+#if !SKIP
 import SwiftData
+#endif
 
 public enum Chronotype: String, CaseIterable, Identifiable, Codable, Sendable {
     case morningLark = "morningLark"

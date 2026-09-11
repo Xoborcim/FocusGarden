@@ -1,5 +1,7 @@
 import Foundation
+#if !SKIP
 import SwiftData
+#endif
 import SwiftUI
 
 struct CalendarEvent: Identifiable, Equatable {
@@ -50,20 +52,22 @@ enum WeekdayLabel {
 }
 
 struct ScheduleView: View {
-    @Environment(AppServices.self) private var services
-    @Query(sort: \FocusTask.scheduledStart) private var tasks: [FocusTask]
-    @Query private var classBlocks: [ClassBlock]
-    @Query private var assessments: [Assessment]
-    @Query(sort: \Course.code) private var courses: [Course]
+    @Environment(AppServices.self) var services
+    @Query(sort: \FocusTask.scheduledStart) var tasks: [FocusTask]
+    @Query var classBlocks: [ClassBlock]
+    @Query var assessments: [Assessment]
+    @Query(sort: \Course.code) var courses: [Course]
 
-    @State private var editor: CalendarEditorTarget?
-    @State private var showingImporter = false
-    @State private var showingMonth = false
+    @State var editor: CalendarEditorTarget?
+    @State var showingImporter = false
+    @State var showingMonth = false
 
     private let hourHeight: CGFloat = 60
     private let gutter: CGFloat = 52
 
     private var calendar: Calendar { services.configuration.calendar() }
+
+    init() {}
 
     var body: some View {
         FGScreen(
@@ -124,7 +128,7 @@ struct ScheduleView: View {
             Text("NO COURSES YET")
                 .font(FGTheme.mono(.title3, weight: .bold))
                 .foregroundStyle(FGTheme.green)
-            Text("Import a .ics timetable. FocusGarden keeps the class times, then fills the gaps with study, plus extra blocks before tests and homework.")
+            Text("Import a .ics timetable. Sprout tracks your classes and focus, helping you log and reflect with clarity.")
                 .font(FGTheme.mono(.body))
                 .foregroundStyle(FGTheme.muted)
             FGButton(title: "IMPORT .ICS") {
@@ -216,9 +220,9 @@ struct ScheduleView: View {
                                 .padding(.vertical, 5)
                                 .background(
                                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(event.kind == .exam ? FGTheme.danger : FGTheme.amber)
+                                        .fill(event.kind == CalendarEvent.Kind.exam ? FGTheme.danger : FGTheme.amber)
                                 )
-                                .shadow(color: (event.kind == .exam ? FGTheme.danger : FGTheme.amber).opacity(0.25), radius: 4, x: 0, y: 2)
+                                .shadow(color: (event.kind == CalendarEvent.Kind.exam ? FGTheme.danger : FGTheme.amber).opacity(0.25), radius: 4, x: 0, y: 2)
                         }
                         .buttonStyle(.plain)
                     }
@@ -233,7 +237,7 @@ struct ScheduleView: View {
     private var dayGrid: some View {
         let events = timedEvents
         let range = visibleHours(for: events)
-        let totalHeight = CGFloat(range.count) * hourHeight
+        let totalHeight = CGFloat(range.upperBound - range.lowerBound) * hourHeight
 
         return ScrollView {
             ZStack(alignment: .topLeading) {
@@ -274,9 +278,9 @@ struct ScheduleView: View {
                 let top = yOffset(item.event.start, range: range)
                 let bottom = yOffset(item.event.end, range: range)
                 let widthFactor = 1 / CGFloat(max(1, item.columnCount))
-                let blockWidth = max(44, usable * widthFactor - 4)
+                let blockWidth = max(CGFloat(44), usable * widthFactor - 4)
                 let x = gutter + 6 + (blockWidth + 4) * CGFloat(item.column)
-                let blockHeight = max(28, bottom - top - 2)
+                let blockHeight = max(CGFloat(28), bottom - top - 2)
                 Button {
                     editor = target(for: item.event)
                 } label: {
@@ -304,7 +308,7 @@ struct ScheduleView: View {
             }
         }()
 
-        if event.kind == .studyBreak {
+        if event.kind == CalendarEvent.Kind.studyBreak {
             return AnyView(
                 HStack(spacing: 4) {
                     Image(systemName: "cup.and.saucer.fill")
@@ -325,7 +329,7 @@ struct ScheduleView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(FGTheme.amber.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                        .stroke(FGTheme.amber.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [CGFloat(3), CGFloat(3)]))
                 )
             )
         }
@@ -375,7 +379,7 @@ struct ScheduleView: View {
                     .stroke(accent.opacity(0.28), lineWidth: 1)
             )
             .shadow(color: Color.black.opacity(0.22), radius: 6, x: 0, y: 2)
-            .opacity(event.kind == .completed ? 0.55 : 1)
+            .opacity(event.kind == CalendarEvent.Kind.completed ? 0.55 : 1.0)
             .drawingGroup()
         )
     }
@@ -450,14 +454,16 @@ struct ScheduleView: View {
             guard !task.isCompleted else { continue }
             guard let start = task.scheduledStart, let end = task.scheduledEnd else { continue }
             guard calendar.isDate(start, inSameDayAs: day) else { continue }
-            let kind: CalendarEvent.Kind = {
-                if task.isCompleted { return .completed }
+            let kind: CalendarEvent.Kind
+            if task.isCompleted {
+                kind = CalendarEvent.Kind.completed
+            } else {
                 switch task.kind {
-                case .testPrep: return .testPrep
-                case .homework: return .homework
-                case .study: return .study
+                case .testPrep: kind = CalendarEvent.Kind.testPrep
+                case .homework: kind = CalendarEvent.Kind.homework
+                case .study: kind = CalendarEvent.Kind.study
                 }
-            }()
+            }
             events.append(
                 CalendarEvent(
                     id: task.id,
@@ -511,17 +517,26 @@ struct ScheduleView: View {
     }
 
     private var weekDays: [Date] {
-        let weekday = calendar.component(.weekday, from: services.selectedDate)
-        let start = calendar.date(byAdding: .day, value: 1 - weekday, to: calendar.startOfDay(for: services.selectedDate)) ?? services.selectedDate
-        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
+        let weekday = calendar.component(Calendar.Component.weekday, from: services.selectedDate)
+        let start = calendar.date(byAdding: Calendar.Component.day, value: 1 - weekday, to: calendar.startOfDay(for: services.selectedDate)) ?? services.selectedDate
+        var days: [Date] = []
+        for offset in 0..<7 {
+            if let date = calendar.date(byAdding: Calendar.Component.day, value: offset, to: start) {
+                days.append(date)
+            }
+        }
+        return days
     }
 
     private var monthTitle: String {
-        services.selectedDate.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: "en_US_POSIX"))).uppercased()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.string(from: services.selectedDate).uppercased()
     }
 
     private func shiftWeek(_ delta: Int) {
-        services.selectedDate = calendar.date(byAdding: .day, value: delta * 7, to: services.selectedDate) ?? services.selectedDate
+        services.selectedDate = calendar.date(byAdding: Calendar.Component.day, value: delta * 7, to: services.selectedDate) ?? services.selectedDate
     }
 
     private func visibleHours(for events: [CalendarEvent]) -> Range<Int> {

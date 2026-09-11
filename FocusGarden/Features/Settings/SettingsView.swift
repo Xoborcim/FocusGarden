@@ -1,21 +1,35 @@
+#if !SKIP
 import SwiftData
+#endif
 import SwiftUI
 
 struct SettingsView: View {
-    @Environment(AppServices.self) private var services
-    @Query private var blocks: [ClassBlock]
-    @Query private var assessments: [Assessment]
-    @Query private var courses: [Course]
-    @State private var showingImporter = false
-    @State private var showingResetConfirm = false
-    @State private var showingResetStudyConfirm = false
+    @Environment(AppServices.self) var services
+    @Query var blocks: [ClassBlock]
+    @Query var assessments: [Assessment]
+    @Query var courses: [Course]
+    @State var showingImporter = false
+    @State var showingResetConfirm = false
+    @State var showingResetStudyConfirm = false
+
+    init() {}
 
     var body: some View {
         FGScreen(title: "SETTINGS") {
-            List {
-                Section("CALENDAR") {
-                    Button("Import .ics timetable") { showingImporter = true }
-                    Text("\(visibleCourseCount) courses this term · \(visibleBlockCount) class blocks")
+            Form {
+                Section("TIMETABLE & COURSES") {
+                    Button {
+                        showingImporter = true
+                    } label: {
+                        HStack {
+                            Label("Import / update ICS calendar", systemImage: "calendar.badge.plus")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(FGTheme.muted)
+                        }
+                    }
+                    Text("Imports only your lectures and tutorials. Study slots generate automatically around them.")
                         .font(FGTheme.mono(.caption))
                         .foregroundStyle(FGTheme.muted)
                 }
@@ -23,27 +37,25 @@ struct SettingsView: View {
                     DatePicker(
                         "Earliest",
                         selection: earliestBinding,
-                        displayedComponents: .hourAndMinute
+                        displayedComponents: DatePickerComponents.hourAndMinute
                     )
                     DatePicker(
                         "Latest",
                         selection: latestBinding,
-                        displayedComponents: .hourAndMinute
+                        displayedComponents: DatePickerComponents.hourAndMinute
                     )
                     Toggle("Before first class", isOn: beforeClassBinding)
                     Toggle("Between classes", isOn: betweenClassesBinding)
-                    Stepper(
-                        "Commute after last class \(services.configuration.commuteMinutesAfterLastClass)m",
-                        value: commuteBinding,
-                        in: 0...180,
-                        step: 5
-                    )
-                    Stepper(
-                        "Break between sessions \(services.configuration.bufferMinutes)m",
-                        value: breakMinutesBinding,
-                        in: 5...60,
-                        step: 5
-                    )
+                    Stepper("Commute after last class \(services.configuration.commuteMinutesAfterLastClass)m") {
+                        if commuteBinding.wrappedValue < 180 { commuteBinding.wrappedValue += 5 }
+                    } onDecrement: {
+                        if commuteBinding.wrappedValue > 0 { commuteBinding.wrappedValue -= 5 }
+                    }
+                    Stepper("Break between sessions \(services.configuration.bufferMinutes)m") {
+                        if breakMinutesBinding.wrappedValue < 60 { breakMinutesBinding.wrappedValue += 5 }
+                    } onDecrement: {
+                        if breakMinutesBinding.wrappedValue > 5 { breakMinutesBinding.wrappedValue -= 5 }
+                    }
                     Text("Guarantees rest time between consecutive study blocks so you stay energized.")
                         .font(FGTheme.mono(.caption))
                         .foregroundStyle(FGTheme.muted)
@@ -61,18 +73,16 @@ struct SettingsView: View {
                         .foregroundStyle(FGTheme.muted)
                 }
                 Section("TIMER INTERVALS & BREAKS") {
-                    Stepper(
-                        "Focus sprint \(services.configuration.timerFocusMinutes)m",
-                        value: focusIntervalBinding,
-                        in: 10...90,
-                        step: 5
-                    )
-                    Stepper(
-                        "Short break \(services.configuration.timerBreakMinutes)m",
-                        value: breakIntervalBinding,
-                        in: 2...30,
-                        step: 1
-                    )
+                    Stepper("Focus sprint \(services.configuration.timerFocusMinutes)m") {
+                        if focusIntervalBinding.wrappedValue < 90 { focusIntervalBinding.wrappedValue += 5 }
+                    } onDecrement: {
+                        if focusIntervalBinding.wrappedValue > 10 { focusIntervalBinding.wrappedValue -= 5 }
+                    }
+                    Stepper("Short break \(services.configuration.timerBreakMinutes)m") {
+                        if breakIntervalBinding.wrappedValue < 30 { breakIntervalBinding.wrappedValue += 1 }
+                    } onDecrement: {
+                        if breakIntervalBinding.wrappedValue > 2 { breakIntervalBinding.wrappedValue -= 1 }
+                    }
                     Text("Splits focus sessions into manageable sprints with relaxing breaks.")
                         .font(FGTheme.mono(.caption))
                         .foregroundStyle(FGTheme.muted)
@@ -81,11 +91,11 @@ struct SettingsView: View {
                     Text("Only the current term is scheduled. Weekly study is 1.2× that term’s class time. Tests and homework get extra blocks before the due date.")
                         .font(FGTheme.mono(.caption))
                         .foregroundStyle(FGTheme.muted)
-                    Stepper(
-                        "Prep window \(services.configuration.assessmentLeadWeeks) weeks",
-                        value: leadWeeksBinding,
-                        in: 1...8
-                    )
+                    Stepper("Prep window \(services.configuration.assessmentLeadWeeks) weeks") {
+                        if leadWeeksBinding.wrappedValue < 8 { leadWeeksBinding.wrappedValue += 1 }
+                    } onDecrement: {
+                        if leadWeeksBinding.wrappedValue > 1 { leadWeeksBinding.wrappedValue -= 1 }
+                    }
                     Text("Test and homework study is spaced inside this window before each due date. Those blocks take priority over weekly study.")
                         .font(FGTheme.mono(.caption))
                         .foregroundStyle(FGTheme.muted)
@@ -188,7 +198,7 @@ struct SettingsView: View {
     private var remindersBinding: Binding<Bool> {
         Binding(
             get: { services.remindersEnabled },
-            set: { services.setRemindersEnabled($0) }
+            set: { services.updateRemindersEnabled($0) }
         )
     }
 

@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 @testable import FocusGarden
 
@@ -28,7 +29,7 @@ final class StudyPlannerTests: XCTestCase {
                 AssessmentEvent(
                     fingerprint: "test|CSC148|1",
                     title: "CSC148 Midterm",
-                    kind: .test,
+                    kind: AssessmentKind.test,
                     start: examStart,
                     end: examStart.addingTimeInterval(2 * 3600),
                     isAllDay: false,
@@ -37,7 +38,7 @@ final class StudyPlannerTests: XCTestCase {
                 AssessmentEvent(
                     fingerprint: "hw|CSC148|1",
                     title: "CSC148 Assignment 1",
-                    kind: .homework,
+                    kind: AssessmentKind.homework,
                     start: homeworkDue,
                     end: homeworkDue.addingTimeInterval(24 * 3600),
                     isAllDay: true,
@@ -48,17 +49,17 @@ final class StudyPlannerTests: XCTestCase {
             configuration: config
         )
 
-        XCTAssertFalse(items.filter { $0.kind == .study }.isEmpty)
-        XCTAssertEqual(items.filter { $0.kind == .study }.map(\.minutes).reduce(0, +) >= 144, true)
+        XCTAssertFalse(items.filter { $0.kind == TaskKind.study }.isEmpty)
+        XCTAssertEqual(items.filter { $0.kind == TaskKind.study }.map(\.minutes).reduce(0, +) >= 144, true)
 
-        let prep = items.filter { $0.kind == .testPrep }
+        let prep = items.filter { $0.kind == TaskKind.testPrep }
         XCTAssertEqual(prep.map(\.minutes).reduce(0, +), 180)
         XCTAssertTrue(prep.allSatisfy { $0.deadline == examStart })
         XCTAssertTrue(prep.allSatisfy { $0.priority == 3 })
         XCTAssertTrue(prep.allSatisfy { ($0.earliestStart ?? .distantPast) >= SchedulingFixtures.date(2026, 9, 4, 0, 0) })
         XCTAssertTrue(prep.allSatisfy { ($0.latestEnd ?? .distantFuture) <= examStart })
 
-        let homework = items.filter { $0.kind == .homework }
+        let homework = items.filter { $0.kind == TaskKind.homework }
         XCTAssertEqual(homework.map(\.minutes).reduce(0, +), 90)
         XCTAssertTrue(homework.allSatisfy { $0.priority == 3 })
     }
@@ -74,7 +75,7 @@ final class StudyPlannerTests: XCTestCase {
                 AssessmentEvent(
                     fingerprint: "test|CSC148|2",
                     title: "CSC148 Term Test",
-                    kind: .test,
+                    kind: AssessmentKind.test,
                     start: examStart,
                     end: examStart.addingTimeInterval(2 * 3600),
                     isAllDay: false,
@@ -85,7 +86,7 @@ final class StudyPlannerTests: XCTestCase {
             now: now,
             configuration: config
         )
-        let prep = items.filter { $0.kind == .testPrep }
+        let prep = items.filter { $0.kind == TaskKind.testPrep }
         XCTAssertEqual(prep.map(\.minutes).reduce(0, +), 240)
         let windowStart = SchedulingFixtures.date(2026, 9, 16, 0, 0)
         XCTAssertTrue(prep.allSatisfy { ($0.earliestStart ?? .distantPast) >= windowStart })
@@ -104,7 +105,7 @@ final class StudyPlannerTests: XCTestCase {
                 AssessmentEvent(
                     fingerprint: "old",
                     title: "Old midterm",
-                    kind: .test,
+                    kind: AssessmentKind.test,
                     start: SchedulingFixtures.date(2026, 9, 1, 14, 0),
                     end: SchedulingFixtures.date(2026, 9, 1, 16, 0),
                     isAllDay: false,
@@ -128,7 +129,7 @@ final class StudyPlannerTests: XCTestCase {
             configuration: config,
             schoolStart: schoolStart
         )
-        let study = items.filter { $0.kind == .study }
+        let study = items.filter { $0.kind == TaskKind.study }
         XCTAssertFalse(study.isEmpty)
         XCTAssertTrue(study.allSatisfy { ($0.earliestStart ?? .distantPast) >= schoolStart })
     }
@@ -142,7 +143,7 @@ final class StudyPlannerTests: XCTestCase {
                 AssessmentEvent(
                     fingerprint: "early",
                     title: "CSC148 Assignment 0",
-                    kind: .homework,
+                    kind: AssessmentKind.homework,
                     start: SchedulingFixtures.date(2026, 9, 7, 0, 0),
                     end: SchedulingFixtures.date(2026, 9, 8, 0, 0),
                     isAllDay: true,
@@ -167,7 +168,7 @@ final class StudyPlannerTests: XCTestCase {
             configuration: config
         )
 
-        let studyItems = items.filter { $0.kind == .study && $0.courseCode == "MAT223" }
+        let studyItems = items.filter { $0.kind == TaskKind.study && $0.courseCode == "MAT223" }
         XCTAssertFalse(studyItems.isEmpty)
         // Verify all chunks are at most 60 minutes (1 hour)
         XCTAssertTrue(studyItems.allSatisfy { $0.minutes <= 60 })
@@ -175,5 +176,43 @@ final class StudyPlannerTests: XCTestCase {
         let week1Chunks = Array(studyItems.prefix(4)).map(\.minutes)
         XCTAssertEqual(week1Chunks, [60, 60, 60, 36])
         XCTAssertEqual(week1Chunks.reduce(0, +), 216)
+    }
+
+    func testDuplicateAssessmentsAndCoursesAreDeduplicated() {
+        let now = SchedulingFixtures.date(2026, 9, 8, 7, 0)
+        let examStart = SchedulingFixtures.date(2026, 9, 18, 14, 0)
+        let items = planner.plan(
+            courses: [
+                CourseWorkload(code: "CSC148", weeklyClassMinutes: 120),
+                CourseWorkload(code: "CSC148", weeklyClassMinutes: 120)
+            ],
+            assessments: [
+                AssessmentEvent(
+                    fingerprint: "test|CSC148|duplicate",
+                    title: "CSC148 Midterm",
+                    kind: AssessmentKind.test,
+                    start: examStart,
+                    end: examStart.addingTimeInterval(2 * 3600),
+                    isAllDay: false,
+                    courseCode: "CSC148"
+                ),
+                AssessmentEvent(
+                    fingerprint: "test|CSC148|duplicate",
+                    title: "CSC148 Midterm",
+                    kind: AssessmentKind.test,
+                    start: examStart,
+                    end: examStart.addingTimeInterval(2 * 3600),
+                    isAllDay: false,
+                    courseCode: "CSC148"
+                )
+            ],
+            now: now,
+            configuration: config
+        )
+
+        let prep = items.filter { $0.kind == TaskKind.testPrep }
+        XCTAssertEqual(prep.map(\.minutes).reduce(0, +), 180)
+        let uniqueKeys = Set(items.map(\.generationKey))
+        XCTAssertEqual(uniqueKeys.count, items.count, "All generated study items must have unique generationKeys")
     }
 }

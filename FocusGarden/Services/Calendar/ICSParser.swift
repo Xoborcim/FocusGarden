@@ -38,11 +38,11 @@ struct ICSClassPreview: Equatable, Sendable, Identifiable {
     var termID: String
 }
 
-enum AssessmentKind: String, CaseIterable, Sendable {
+public enum AssessmentKind: String, CaseIterable, Sendable {
     case test
     case homework
 
-    var displayName: String {
+    public var displayName: String {
         switch self {
         case .test: "Test"
         case .homework: "Homework"
@@ -220,7 +220,7 @@ struct ICSParser: Sendable {
             guard inside, let colon = trimmed.firstIndex(of: ":") else { continue }
             let keyPart = String(trimmed[..<colon])
             let value = String(trimmed[trimmed.index(after: colon)...])
-            let key = (keyPart.split(separator: ";").first.map(String.init) ?? keyPart).uppercased()
+            let key = (keyPart.split(separator: ";").first.map { String($0) } ?? keyPart).uppercased()
             current[key] = unescape(value)
             current["\(key)_PARAMS"] = keyPart
         }
@@ -265,7 +265,7 @@ struct ICSParser: Sendable {
 
     private func groupWeeklyEquivalents(_ events: [ParsedICSEvent]) -> [ICSClassPreview] {
         var grouped: [String: ICSClassPreview] = [:]
-        var calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: Calendar.Identifier.gregorian)
         calendar.timeZone = defaultTimeZone
 
         for event in events {
@@ -273,12 +273,12 @@ struct ICSParser: Sendable {
             calendar.timeZone = tz
             let term = AcademicTerm.containing(event.start, calendar: calendar)
             let startMinutes = calendar.component(.hour, from: event.start) * 60 + calendar.component(.minute, from: event.start)
-            let duration = max(60, event.end.timeIntervalSince(event.start))
+            let duration = max(60.0, event.end.timeIntervalSince(event.start))
             let inferred = inferCourse(from: event.summary)
             let days = event.recurrenceWeekdays.isEmpty ? [calendar.component(.weekday, from: event.start)] : event.recurrenceWeekdays
             let until = event.recurrenceUntil ?? event.start
             for day in days {
-                let startTime = TimeInterval(startMinutes * 60)
+                let startTime = Double(startMinutes * 60)
                 let code = inferred.code.isEmpty ? event.summary : inferred.code
                 let key = fingerprint(
                     code: code,
@@ -323,7 +323,7 @@ struct ICSParser: Sendable {
         guard var raw = value?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return nil }
         let declared = timeZone(from: params)
         let hasZ = raw.hasSuffix("Z")
-        if hasZ { raw.removeLast() }
+        if hasZ { raw = String(raw.dropLast()) }
 
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -339,12 +339,14 @@ struct ICSParser: Sendable {
     }
 
     func timeZone(from params: String?) -> TimeZone? {
-        guard let params, let match = params.range(of: "TZID=", options: .caseInsensitive) else { return nil }
-        let after = params[match.upperBound...]
-        let tzid = (after.split(separator: ";").first.map(String.init) ?? String(after))
-            .trimmingCharacters(in: .whitespaces)
+        guard let params else { return nil }
+        let upper = params.uppercased()
+        guard let match = upper.range(of: "TZID=") else { return nil }
+        let after = upper[match.upperBound...]
+        let tzid = (after.split(separator: ";").first.map { String($0) } ?? String(after))
+            .trimmingCharacters(in: CharacterSet.whitespaces)
         if let zone = TimeZone(identifier: tzid) { return zone }
-        if tzid.uppercased() == "AMERICA/TORONTO" {
+        if tzid == "AMERICA/TORONTO" {
             return TimeZone(identifier: "America/Toronto")
         }
         if let slash = tzid.firstIndex(of: "/") {
@@ -362,8 +364,12 @@ struct ICSParser: Sendable {
         let paramsUpper = params?.uppercased() ?? ""
         if paramsUpper.contains("VALUE=DATE") && !paramsUpper.contains("DATE-TIME") { return true }
         guard let value else { return false }
-        let raw = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return raw.count == 8 && raw.allSatisfy(\.isNumber)
+        let raw = value.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+        if raw.count != 8 { return false }
+        for ch in raw {
+            if ch < "0" || ch > "9" { return false }
+        }
+        return true
     }
 
     private func hasWeeklyRule(_ rrule: String?) -> Bool {
@@ -391,7 +397,7 @@ struct ICSParser: Sendable {
     }
 
     private func weekday(of date: Date, tzid: String) -> Int {
-        var calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: Calendar.Identifier.gregorian)
         calendar.timeZone = TimeZone(identifier: tzid) ?? defaultTimeZone
         return calendar.component(.weekday, from: date)
     }
@@ -425,17 +431,18 @@ enum ICSEventClassifier {
     }
 
     static func isTest(_ upper: String) -> Bool {
-        upper.range(of: #"\b(EXAM|MIDTERM|FINAL|TEST|QUIZ|TERM TEST)\b"#, options: .regularExpression) != nil
+        let tokens = ["EXAM", "MIDTERM", "FINAL", "TEST", "QUIZ", "TERM TEST"]
+        return tokens.contains { upper.contains($0) }
     }
 
     static func isHomework(_ upper: String) -> Bool {
         let tokens = [
             "ASSIGNMENT", "HOMEWORK", "HW ", " HW", "PROBLEM SET", "PROBLEMSET",
-            "ESSAY", "PROJECT", "LAB REPORT", "SUBMISSION", "DUE", "PS1", "PS2", "PS3", "PS4"
+            "ESSAY", "PROJECT", "LAB REPORT", "SUBMISSION", "DUE",
+            "PS1", "PS2", "PS3", "PS4", "PS5", "PS6", "PS7", "PS8", "PS9", "PS0",
+            "HW1", "HW2", "HW3", "HW4", "HW5", "HW6", "HW7", "HW8", "HW9", "HW0"
         ]
         if tokens.contains(where: { upper.contains($0) }) { return true }
-        if upper.range(of: #"\bHW\d+\b"#, options: .regularExpression) != nil { return true }
-        if upper.range(of: #"\bPS\d+\b"#, options: .regularExpression) != nil { return true }
         return false
     }
 
@@ -446,27 +453,112 @@ enum ICSEventClassifier {
 }
 
 enum CourseCodeParser {
-    private static let compactCodePattern = #/(?i)\b([A-Z]{2,5}\d{3}[A-Z]?\d?[A-Z]?)\b/#
-    private static let spacedCodePattern = #/(?i)\b([A-Z]{2,5})\s+(\d{3}[A-Z]?)(?:\s+(\d{3}))?\b/#
-
     struct ParsedCourseBlock: Equatable {
         var code: String
         var nameHint: String?
     }
 
     static func parse(title: String) -> ParsedCourseBlock? {
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let spaced = trimmed.firstMatch(of: spacedCodePattern) {
-            let subject = String(spaced.output.1).uppercased()
-            let number = String(spaced.output.2).uppercased()
-            return ParsedCourseBlock(
-                code: "\(subject)\(number)",
-                nameHint: cleanedName(from: trimmed, matchedSpan: String(spaced.output.0))
-            )
+        let trimmed = title.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+        let words = trimmed.split(separator: " ").map { String($0) }
+        guard !words.isEmpty else { return nil }
+
+        // Try spaced: e.g. ["CHEM", "112A", "001", "Tutorial"]
+        if words.count >= 2 {
+            let first = words[0].uppercased()
+            let second = words[1].uppercased()
+            if isSubjectPrefix(first) && isCourseNumber(second) {
+                let code = "\(first)\(second)"
+                let matchedSpan = "\(words[0]) \(words[1])"
+                return ParsedCourseBlock(
+                    code: code,
+                    nameHint: cleanedName(from: trimmed, matchedSpan: matchedSpan)
+                )
+            }
         }
-        guard let match = trimmed.firstMatch(of: compactCodePattern) else { return nil }
-        let code = String(match.output.1).uppercased()
-        return ParsedCourseBlock(code: code, nameHint: cleanedName(from: trimmed, matchedSpan: code))
+
+        // Try compact: e.g. "MGT225H5" at words[0] or any word
+        for word in words {
+            let upper = word.uppercased()
+            if let compactCode = extractCompactCode(upper) {
+                return ParsedCourseBlock(
+                    code: compactCode,
+                    nameHint: cleanedName(from: trimmed, matchedSpan: word)
+                )
+            }
+        }
+
+        return nil
+    }
+
+    private static func isSubjectPrefix(_ str: String) -> Bool {
+        if str.count < 2 || str.count > 5 { return false }
+        for ch in str {
+            let isUpper = (ch >= "A" && ch <= "Z")
+            let isLower = (ch >= "a" && ch <= "z")
+            if !isUpper && !isLower { return false }
+        }
+        return true
+    }
+
+    private static func isCourseNumber(_ str: String) -> Bool {
+        if str.count < 3 { return false }
+        var count = 0
+        for ch in str {
+            if count < 3 {
+                if ch < "0" || ch > "9" { return false }
+                count += 1
+            } else {
+                break
+            }
+        }
+        return count == 3
+    }
+
+    private static func extractCompactCode(_ str: String) -> String? {
+        var letterCount = 0
+        var digitCount = 0
+        var suffixCount = 0
+        var mode = 0 // 0: letters, 1: digits, 2: suffix
+        var matched = ""
+
+        for ch in str {
+            let s = String(ch)
+            if mode == 0 {
+                if (ch >= "A" && ch <= "Z") || (ch >= "a" && ch <= "z") {
+                    letterCount += 1
+                    matched += s
+                } else if letterCount >= 2 && letterCount <= 5 && (ch >= "0" && ch <= "9") {
+                    mode = 1
+                    digitCount += 1
+                    matched += s
+                } else {
+                    return nil
+                }
+            } else if mode == 1 {
+                if ch >= "0" && ch <= "9" {
+                    digitCount += 1
+                    matched += s
+                } else if digitCount >= 3 && ((ch >= "A" && ch <= "Z") || (ch >= "a" && ch <= "z")) {
+                    mode = 2
+                    suffixCount += 1
+                    matched += s
+                } else if digitCount >= 3 {
+                    break
+                } else {
+                    return nil
+                }
+            } else if mode == 2 {
+                if (ch >= "A" && ch <= "Z") || (ch >= "a" && ch <= "z") || (ch >= "0" && ch <= "9") {
+                    suffixCount += 1
+                    matched += s
+                } else {
+                    break
+                }
+            }
+        }
+        guard letterCount >= 2 && letterCount <= 5 && digitCount >= 3 else { return nil }
+        return matched.uppercased()
     }
 
     static func meetingType(in title: String) -> String {
@@ -480,14 +572,22 @@ enum CourseCodeParser {
     }
 
     private static func cleanedName(from title: String, matchedSpan: String) -> String? {
-        var cleaned = title.replacingOccurrences(of: matchedSpan, with: " ", options: .caseInsensitive)
-        cleaned = cleaned.replacingOccurrences(
-            of: #"\b(LEC|TUT|PRA|LAB|SEM|EXAM|MIDTERM|FINAL|TEST|QUIZ|ASSIGNMENT|HOMEWORK|HW|DUE|\d{3})\b"#,
-            with: " ",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        cleaned = cleaned.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
-        cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+        var cleaned = title.replacingOccurrences(of: matchedSpan, with: " ")
+        let noiseWords: [String] = ["LEC", "TUT", "PRA", "LAB", "SEM", "EXAM", "MIDTERM", "FINAL", "TEST", "QUIZ", "ASSIGNMENT", "HOMEWORK", "HW", "DUE"]
+        let parts = cleaned.split(separator: " ").map { String($0) }
+        let filtered = parts.filter { part in
+            let up = part.uppercased()
+            if noiseWords.contains(up) { return false }
+            if up.count == 3 {
+                var allDigits = true
+                for ch in up {
+                    if ch < "0" || ch > "9" { allDigits = false; break }
+                }
+                if allDigits { return false }
+            }
+            return true
+        }
+        cleaned = filtered.joined(separator: " ").trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
         return cleaned.count >= 3 ? cleaned : nil
     }
 }

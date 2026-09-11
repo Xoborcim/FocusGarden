@@ -1,18 +1,24 @@
+#if !SKIP
 import SwiftData
+#endif
 import SwiftUI
 
 struct CalendarEventEditor: View {
-    @Environment(AppServices.self) private var services
-    @Environment(\.dismiss) private var dismiss
-    @Query private var tasks: [FocusTask]
-    @Query private var classBlocks: [ClassBlock]
-    @Query private var assessments: [Assessment]
+    @Environment(AppServices.self) var services
+    @Environment(\.dismiss) var dismiss
+    @Query var tasks: [FocusTask]
+    @Query var classBlocks: [ClassBlock]
+    @Query var assessments: [Assessment]
 
     let target: CalendarEditorTarget
 
-    @State private var isRescheduling = false
-    @State private var rescheduleStart = Date()
-    @State private var isEditingClass = false
+    init(target: CalendarEditorTarget) {
+        self.target = target
+    }
+
+    @State var isRescheduling = false
+    @State var rescheduleStart = Date()
+    @State var isEditingClass = false
 
     var body: some View {
         NavigationStack {
@@ -111,8 +117,10 @@ struct CalendarEventEditor: View {
                 }
             }
             .navigationTitle("BLOCK")
+            #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
             }

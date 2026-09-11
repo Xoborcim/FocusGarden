@@ -1,5 +1,7 @@
 import Foundation
+#if !SKIP
 import SwiftData
+#endif
 
 // MARK: - Garden Summary
 
@@ -52,6 +54,7 @@ struct HarvestResult: @unchecked Sendable {
 struct GardenService {
     private init() {}
 
+    #if !SKIP
     /// Seeds a new plant linked to the given focus task, setting species, target minutes, and next grid index.
     @discardableResult
     static func plantSeed(for task: FocusTask, in context: ModelContext) -> GardenPlant {
@@ -104,13 +107,60 @@ struct GardenService {
         try? context.save()
     }
 
-    /// Marks the plant as wilted if a session was interrupted or abandoned.
+    /// Adds growth to the garden from a logged activity.
+    static func recordActivityLogGrowth(log: ActivityLog, in context: ModelContext) {
+        guard log.durationMinutes > 0 else { return }
+        let appState = fetchOrCreateAppState(in: context)
+        appState.totalFocusXP += log.durationMinutes
+        appState.lastFocusDate = log.timestamp
+
+        if log.isFocusedStudy || log.focusRating >= 3 {
+            let descriptor = FetchDescriptor<GardenPlant>(sortBy: [SortDescriptor(\.plantedAt, order: .reverse)])
+            let existingPlants = (try? context.fetch(descriptor)) ?? []
+            if let activePlant = existingPlants.first(where: { !$0.isHarvested && $0.growthProgress < 1.0 }) {
+                let updatedMinutes = activePlant.focusedMinutes + log.durationMinutes
+                activePlant.focusedMinutes = updatedMinutes
+                let divisor = Double(max(1, activePlant.targetMinutes))
+                let newProgress = min(1.0, Double(updatedMinutes) / divisor)
+                activePlant.growthProgress = newProgress
+                if newProgress >= 1.0 {
+                    activePlant.harvestedAt = log.timestamp
+                }
+            } else {
+                let occupiedIndices = Set(existingPlants.map(\.gridIndex))
+                var nextIndex = 0
+                while occupiedIndices.contains(nextIndex) {
+                    nextIndex += 1
+                }
+                let courseCode = log.linkedCourse?.code ?? ""
+                let species = PlantSpecies.species(for: log.linkedCourse?.subjectCluster ?? SubjectCluster.cluster(for: log.title), taskKind: .study)
+                let targetMinutes = max(45, log.durationMinutes)
+                let plant = GardenPlant(
+                    taskID: log.id,
+                    courseCode: courseCode,
+                    title: log.title,
+                    species: species,
+                    plantedAt: log.timestamp,
+                    harvestedAt: log.durationMinutes >= targetMinutes ? log.timestamp : nil,
+                    targetMinutes: targetMinutes,
+                    focusedMinutes: log.durationMinutes,
+                    growthProgress: min(1.0, Double(log.durationMinutes) / Double(targetMinutes)),
+                    isWilted: false,
+                    gridIndex: nextIndex
+                )
+                context.insert(plant)
+            }
+        }
+        try? context.save()
+    }
+
+    /// Marks a plant as wilted.
     static func wiltPlant(plant: GardenPlant, context: ModelContext) {
         plant.isWilted = true
         try? context.save()
     }
 
-    /// Restores a wilted plant back to healthy growing status.
+    /// Restores a plant back to healthy growing status.
     static func revivePlant(plant: GardenPlant, context: ModelContext) {
         plant.isWilted = false
         try? context.save()
@@ -122,7 +172,7 @@ struct GardenService {
         let plants = (try? context.fetch(descriptor)) ?? []
 
         let totalPlants = plants.count
-        let matureCount = plants.filter { $0.growthStage == .mature || $0.growthProgress >= 1.0 }.count
+        let matureCount = plants.filter { $0.growthStage == PlantGrowthStage.mature || $0.growthProgress >= 1.0 }.count
         let totalFocusedMinutes = plants.reduce(0) { $0 + $1.focusedMinutes }
 
         var speciesCounts: [PlantSpecies: Int] = [:]
@@ -130,7 +180,7 @@ struct GardenService {
             speciesCounts[species] = 0
         }
         for plant in plants {
-            speciesCounts[plant.species, default: 0] += 1
+            speciesCounts[plant.species] = (speciesCounts[plant.species] ?? 0) + 1
         }
 
         return GardenSummary(
@@ -144,18 +194,17 @@ struct GardenService {
     /// Fetches active plants currently growing in the garden (not yet harvested).
     static func fetchActivePlants(in context: ModelContext) -> [GardenPlant] {
         let descriptor = FetchDescriptor<GardenPlant>(
-            predicate: #Predicate<GardenPlant> { $0.harvestedAt == nil },
             sortBy: [SortDescriptor(\.gridIndex)]
         )
-        return (try? context.fetch(descriptor)) ?? []
+        let plants = (try? context.fetch(descriptor)) ?? []
+        return plants.filter { $0.harvestedAt == nil }
     }
 
     /// Fetches a plant associated with a specific task ID.
     static func fetchPlant(for taskID: UUID, in context: ModelContext) -> GardenPlant? {
-        let descriptor = FetchDescriptor<GardenPlant>(
-            predicate: #Predicate<GardenPlant> { $0.taskID == taskID }
-        )
-        return try? context.fetch(descriptor).first
+        let descriptor = FetchDescriptor<GardenPlant>()
+        let plants = (try? context.fetch(descriptor)) ?? []
+        return plants.first { $0.taskID == taskID }
     }
 
     /// Deletes a plant from the garden.
@@ -163,6 +212,7 @@ struct GardenService {
         context.delete(plant)
         try? context.save()
     }
+    #endif
 
     // MARK: - Pure Progression Functions
 
@@ -207,6 +257,7 @@ struct GardenService {
         return (newStreak: 1, isNewDay: true)
     }
 
+    #if !SKIP
     // MARK: - Botanical Progression & Harvest
 
     /// Completes the harvest for a plant, updating XP, streaks, and model state.
@@ -277,27 +328,20 @@ struct GardenService {
         context: ModelContext
     ) {
         guard !plant.isHarvested else { return }
-
         if intentionalAbandon {
             if focusedMinutes < 2 {
                 context.delete(plant)
                 try? context.save()
+                return
             } else {
-                let updatedMinutes = max(plant.focusedMinutes, max(0, focusedMinutes))
-                plant.focusedMinutes = updatedMinutes
-                let divisor = Double(max(1, plant.targetMinutes))
-                plant.growthProgress = min(1.0, Double(updatedMinutes) / divisor)
                 plant.isWilted = true
-                try? context.save()
             }
-        } else {
-            let updatedMinutes = max(plant.focusedMinutes, max(0, focusedMinutes))
-            plant.focusedMinutes = updatedMinutes
-            let divisor = Double(max(1, plant.targetMinutes))
-            plant.growthProgress = min(1.0, Double(updatedMinutes) / divisor)
-            plant.isWilted = false
-            try? context.save()
         }
+        let updatedMinutes = max(plant.focusedMinutes, max(0, focusedMinutes))
+        plant.focusedMinutes = updatedMinutes
+        let divisor = Double(max(1, plant.targetMinutes))
+        plant.growthProgress = min(1.0, Double(updatedMinutes) / divisor)
+        try? context.save()
     }
 
     private static func fetchOrCreateAppState(in context: ModelContext) -> AppStateRecord {
@@ -309,4 +353,5 @@ struct GardenService {
         context.insert(record)
         return record
     }
+    #endif
 }

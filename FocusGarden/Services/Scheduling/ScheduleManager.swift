@@ -1,5 +1,12 @@
 import Foundation
+#if !SKIP
 import SwiftData
+#endif
+
+struct StudyItemBounds: Sendable {
+    var earliest: Date?
+    var latest: Date?
+}
 
 struct ScheduleManager: Sendable {
     var engine: AutoSchedulingEngine
@@ -44,10 +51,13 @@ struct ScheduleManager: Sendable {
         }
         expanded.append(contentsOf: timedAssessments(activeAssessments, now: now))
 
-        let activeCodes = Set(activeBlocks.compactMap { block -> String? in
+        var activeCodes = Set<String>()
+        for block in activeBlocks {
             let code = block.course?.code ?? ""
-            return code.isEmpty ? nil : code
-        })
+            if !code.isEmpty {
+                activeCodes.insert(code)
+            }
+        }
         let desired = planner.plan(
             courses: courseWorkloads(courses: courses, blocks: activeBlocks, calendar: calendar)
                 .filter { activeCodes.contains($0.code) },
@@ -79,33 +89,37 @@ struct ScheduleManager: Sendable {
         let manualTasks = tasks.filter { $0.generationKey.isEmpty }
         let allTasksToSchedule = synced + manualTasks
 
-        let boundsByKey = Dictionary(uniqueKeysWithValues: desired.map {
-            ($0.generationKey, (earliest: $0.earliestStart, latest: $0.latestEnd))
-        })
-        let plannable = allTasksToSchedule.compactMap { task -> PlannableTask? in
-            guard !task.isCompleted else { return nil }
+        var boundsByKey: [String: StudyItemBounds] = [:]
+        for item in desired {
+            boundsByKey[item.generationKey] = StudyItemBounds(earliest: item.earliestStart, latest: item.latestEnd)
+        }
+        var plannable: [PlannableTask] = []
+        for task in allTasksToSchedule {
+            guard !task.isCompleted else { continue }
             let locked = task.isSoftLocked
                 && task.scheduledStart != nil
                 && task.scheduledEnd != nil
                 && (task.scheduledEnd ?? .distantPast) > (task.scheduledStart ?? .distantFuture)
             let bounds = boundsByKey[task.generationKey]
-            return PlannableTask(
-                id: task.id,
-                title: task.title,
-                priority: task.priority,
-                remainingMinutes: task.remainingMinutes > 0 ? task.remainingMinutes : task.estimatedMinutes,
-                deadline: task.deadline,
-                taskKind: task.taskKind,
-                isSpacedReview: task.isSpacedReview,
-                isSoftLocked: locked,
-                lockedStart: locked ? task.scheduledStart : nil,
-                lockedEnd: locked ? task.scheduledEnd : nil,
-                intensity: task.intensity,
-                courseCode: task.linkedCourse?.code ?? "",
-                earliestStart: bounds?.earliest,
-                latestEnd: bounds?.latest,
-                masteryRating: task.masteryRatingRaw,
-                errorNotes: task.errorNotes
+            plannable.append(
+                PlannableTask(
+                    id: task.id,
+                    title: task.title,
+                    priority: task.priority,
+                    remainingMinutes: task.remainingMinutes > 0 ? task.remainingMinutes : task.estimatedMinutes,
+                    deadline: task.deadline,
+                    taskKind: task.taskKind,
+                    isSpacedReview: task.isSpacedReview,
+                    isSoftLocked: locked,
+                    lockedStart: locked ? task.scheduledStart : nil,
+                    lockedEnd: locked ? task.scheduledEnd : nil,
+                    intensity: task.intensity,
+                    courseCode: task.linkedCourse?.code ?? "",
+                    earliestStart: bounds?.earliest,
+                    latestEnd: bounds?.latest,
+                    masteryRating: task.masteryRatingRaw,
+                    errorNotes: task.errorNotes
+                )
             )
         }
 
@@ -118,8 +132,14 @@ struct ScheduleManager: Sendable {
             )
         )
 
-        let placementsByTask = Dictionary(grouping: plan.placements, by: \.taskID)
-        let unscheduledReasons = Dictionary(uniqueKeysWithValues: plan.unscheduled.map { ($0.taskID, $0.reason) })
+        var placementsByTask: [UUID: [ScheduledPlacement]] = [:]
+        for placement in plan.placements {
+            placementsByTask[placement.taskID, default: []].append(placement)
+        }
+        var unscheduledReasons: [UUID: String] = [:]
+        for unscheduled in plan.unscheduled {
+            unscheduledReasons[unscheduled.taskID] = unscheduled.reason
+        }
         for task in allTasksToSchedule where !task.isCompleted {
             if task.isSoftLocked, let start = task.scheduledStart, let end = task.scheduledEnd, end > start {
                 task.scheduleReason = "Pinned where you put it."
@@ -219,15 +239,20 @@ struct ScheduleManager: Sendable {
     }
 
     private func schoolStart(from blocks: [ClassBlock], calendar: Calendar) -> Date? {
-        blocks.compactMap { block -> Date? in
-            guard calendar.component(.year, from: block.validFrom) >= 1990 else { return nil }
-            return calendar.startOfDay(for: block.validFrom)
-        }.min()
+        var earliest: Date?
+        for block in blocks {
+            guard calendar.component(.year, from: block.validFrom) >= 1990 else { continue }
+            let day = calendar.startOfDay(for: block.validFrom)
+            if earliest == nil || day < earliest! {
+                earliest = day
+            }
+        }
+        return earliest
     }
 
     private func firstClassEnd(for code: String, blocks: [ClassBlock], calendar: Calendar) -> Date? {
         var best: Date?
-        for block in blocks where (block.course?.code ?? "").caseInsensitiveCompare(code) == .orderedSame {
+        for block in blocks where (block.course?.code ?? "").uppercased() == code.uppercased() {
             guard calendar.component(.year, from: block.validFrom) >= 1990 else { continue }
             var day = calendar.startOfDay(for: block.validFrom)
             for _ in 0..<7 {
@@ -245,21 +270,25 @@ struct ScheduleManager: Sendable {
     private func timedAssessments(_ assessments: [Assessment], now: Date) -> [ExpandedClassBlock] {
         let calendar = configuration.calendar()
         let todayStart = calendar.startOfDay(for: now)
-        return assessments.compactMap { assessment in
-            guard !assessment.isAllDay, assessment.end > assessment.start else { return nil }
+        var result: [ExpandedClassBlock] = []
+        for assessment in assessments {
+            guard !assessment.isAllDay, assessment.end > assessment.start else { continue }
             let dayStart = calendar.startOfDay(for: assessment.start)
-            guard dayStart >= todayStart else { return nil }
-            return ExpandedClassBlock(
-                start: assessment.start,
-                end: assessment.end,
-                cognitiveWeight: assessment.assessmentKind == .test ? 3.0 : 1.0,
-                courseCode: assessment.course?.code ?? "",
-                meetingType: assessment.assessmentKind == .test ? "EXAM" : "HW"
+            guard dayStart >= todayStart else { continue }
+            result.append(
+                ExpandedClassBlock(
+                    start: assessment.start,
+                    end: assessment.end,
+                    cognitiveWeight: assessment.assessmentKind == .test ? 3.0 : 1.0,
+                    courseCode: assessment.course?.code ?? "",
+                    meetingType: assessment.assessmentKind == .test ? "EXAM" : "HW"
+                )
             )
         }
+        return result
     }
 
-    private func syncGeneratedTasks(
+    func syncGeneratedTasks(
         desired: [GeneratedStudyItem],
         existing: [FocusTask],
         courses: [Course],
@@ -269,12 +298,36 @@ struct ScheduleManager: Sendable {
         for course in courses {
             coursesByCode[course.code.uppercased()] = course
         }
-        var existingByKey = Dictionary(uniqueKeysWithValues: existing.filter { !$0.generationKey.isEmpty }.map { ($0.generationKey, $0) })
+        var existingByKey: [String: [FocusTask]] = [:]
+        for task in existing where !task.generationKey.isEmpty {
+            existingByKey[task.generationKey, default: []].append(task)
+        }
         var result: [FocusTask] = []
 
+        var seenDesired = Set<String>()
+        var uniqueDesired: [GeneratedStudyItem] = []
         for item in desired {
+            if seenDesired.insert(item.generationKey).inserted {
+                uniqueDesired.append(item)
+            }
+        }
+
+        for item in uniqueDesired {
             let course = coursesByCode[item.courseCode.uppercased()]
-            if let task = existingByKey.removeValue(forKey: item.generationKey) {
+            if var matchingTasks = existingByKey.removeValue(forKey: item.generationKey), !matchingTasks.isEmpty {
+                // If there are duplicate tasks in the database for this key, prefer a completed one, otherwise pick the first
+                let task: FocusTask
+                if let completedIndex = matchingTasks.firstIndex(where: { $0.isCompleted }) {
+                    task = matchingTasks.remove(at: completedIndex)
+                } else {
+                    task = matchingTasks.removeFirst()
+                }
+
+                // Delete any remaining duplicate uncompleted tasks from context
+                for duplicate in matchingTasks where !duplicate.isCompleted {
+                    context.delete(duplicate)
+                }
+
                 if !task.isCompleted {
                     task.title = item.title
                     task.priority = item.priority
@@ -302,8 +355,10 @@ struct ScheduleManager: Sendable {
             }
         }
 
-        for (_, task) in existingByKey where !task.isCompleted {
-            context.delete(task)
+        for (_, remainingTasks) in existingByKey {
+            for task in remainingTasks where !task.isCompleted {
+                context.delete(task)
+            }
         }
 
         return result

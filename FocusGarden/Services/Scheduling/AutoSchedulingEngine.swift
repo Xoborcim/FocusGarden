@@ -56,7 +56,7 @@ struct AutoSchedulingEngine: Sendable {
 
         let sortedTasks = request.tasks
             .filter { !$0.isSoftLocked && $0.remainingMinutes > 0 }
-            .sorted(by: Self.taskSort)
+            .sorted { Self.taskSort($0, $1) }
 
         for task in sortedTasks {
             let initialChunks = chunkMinutes(task.remainingMinutes, config: config)
@@ -195,8 +195,12 @@ struct AutoSchedulingEngine: Sendable {
 
             if !placedAll {
                 // Atomic, clean rollback of any partial placements for this task BEFORE swap attempt
-                placements.removeSubrange(snapshotPlacementsCount..<placements.count)
-                occupied.removeSubrange(snapshotOccupiedCount..<occupied.count)
+                while placements.count > snapshotPlacementsCount {
+                    placements.removeLast()
+                }
+                while occupied.count > snapshotOccupiedCount {
+                    occupied.removeLast()
+                }
                 dailyNonReviewCounts = snapshotDailyCounts
                 dailyCourseBlockCounts = snapshotDailyCourseCounts
                 dailyStudyMinutes = snapshotDailyStudyMinutes
@@ -430,7 +434,9 @@ struct AutoSchedulingEngine: Sendable {
                         for interval in clamped {
                             if let last = merged.last {
                                 if interval.start <= last.end {
-                                    merged[merged.count - 1].end = max(last.end, interval.end)
+                                    let newEnd = max(last.end, interval.end)
+                                    merged.removeLast()
+                                    merged.append((start: last.start, end: newEnd))
                                 } else {
                                     merged.append(interval)
                                 }
@@ -502,12 +508,14 @@ struct AutoSchedulingEngine: Sendable {
             guard block.end > block.start else { continue }
             if let last = mergedClasses.last {
                 if block.start <= last.end {
-                    mergedClasses[mergedClasses.count - 1].end = max(last.end, block.end)
+                    let newEnd = max(last.end, block.end)
+                    mergedClasses.removeLast()
+                    mergedClasses.append((start: last.start, end: newEnd))
                 } else {
-                    mergedClasses.append((block.start, block.end))
+                    mergedClasses.append((start: block.start, end: block.end))
                 }
             } else {
-                mergedClasses.append((block.start, block.end))
+                mergedClasses.append((start: block.start, end: block.end))
             }
         }
 
@@ -525,7 +533,7 @@ struct AutoSchedulingEngine: Sendable {
         // 2. Between classes (if allowed)
         if config.allowBetweenClasses && mergedClasses.count > 1 {
             for index in 0..<(mergedClasses.count - 1) {
-                let gapStart = max(mergedClasses[index].end, floor, clock.start)
+                let gapStart = max(mergedClasses[index].end, max(floor, clock.start))
                 let gapEnd = min(mergedClasses[index + 1].start, clock.end)
                 if gapStart < gapEnd {
                     segments.append((gapStart, gapEnd))
@@ -535,7 +543,7 @@ struct AutoSchedulingEngine: Sendable {
 
         // 3. After last class (always respects commute time)
         let commute = TimeInterval(max(0, config.commuteMinutesAfterLastClass) * 60)
-        let afterStart = max(latestClassEnd.addingTimeInterval(commute), floor, clock.start)
+        let afterStart = max(latestClassEnd.addingTimeInterval(commute), max(floor, clock.start))
         if afterStart < clock.end {
             segments.append((afterStart, clock.end))
         }
@@ -647,17 +655,17 @@ struct AutoSchedulingEngine: Sendable {
         if let deadline = task.deadline {
             let hours = deadline.timeIntervalSince(start) / 3600
             if hours < 0 {
-                score -= 80 + min(40, abs(hours))
+                score -= 80.0 + min(40.0, abs(hours))
             } else if task.priority >= 3, let earliest = task.earliestStart, let latest = task.latestEnd, latest > earliest {
                 // Prefer the middle of the spaced bucket rather than dumping everything ASAP.
                 let center = earliest.addingTimeInterval(latest.timeIntervalSince(earliest) / 2)
                 let distanceHours = abs(start.timeIntervalSince(center)) / 3600
-                score += max(0, 36 - distanceHours * 2)
-                score += max(0, min(24, hours / 6))
+                score += max(0.0, 36.0 - distanceHours * 2.0)
+                score += max(0.0, min(24.0, hours / 6.0))
             } else {
-                score += max(0, 48 - hours)
+                score += max(0.0, 48.0 - hours)
                 // Urgency gradient across the horizon
-                score += max(0, 20.0 - hours / 24.0)
+                score += max(0.0, 20.0 - hours / 24.0)
             }
         }
 
@@ -807,7 +815,7 @@ struct AutoSchedulingEngine: Sendable {
     }
 
     func cognitiveFatigue(at date: Date, classes: [ExpandedClassBlock], decay: Double) -> Double {
-        classes.reduce(0) { partial, block in
+        classes.reduce(0.0) { partial, block in
             guard block.end <= date else { return partial }
             let hours = date.timeIntervalSince(block.end) / 3600
             return partial + block.cognitiveWeight * exp(-decay * hours)
@@ -908,8 +916,9 @@ struct AutoSchedulingEngine: Sendable {
     }
 
     private func stableChunkID(taskID: UUID, index: Int) -> UUID {
-        var bytes = taskID.uuid
-        bytes.15 = UInt8(truncatingIfNeeded: index + 1)
-        return UUID(uuid: bytes)
+        let base = taskID.uuidString
+        let prefix = String(base.dropLast(4))
+        let hexSuffix = String(format: "%04X", (index + 1) % 0xFFFF)
+        return UUID(uuidString: "\(prefix)\(hexSuffix)") ?? UUID()
     }
 }

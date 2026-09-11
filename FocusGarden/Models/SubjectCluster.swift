@@ -50,7 +50,7 @@ enum SubjectCluster: String, CaseIterable, Identifiable, Sendable {
 
     static func cluster(for codeOrTitle: String) -> SubjectCluster {
         let clean = codeOrTitle.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        let letters = String(clean.prefix(while: { $0.isLetter }))
+        let letters = String(clean.prefix(while: { $0 >= "A" && $0 <= "Z" }))
 
         // Computer Science & Software Engineering
         if ["CSC", "CS", "ECE", "INF", "ROB", "SWE", "CIS", "COMP", "PROG"].contains(letters)

@@ -1,10 +1,39 @@
 import Foundation
+#if !SKIP
 import SwiftData
+#endif
 import SwiftUI
+
+struct FocusTimerResult: @unchecked Sendable {
+    var title: String
+    var category: ActivityCategory
+    var course: Course?
+    var durationMinutes: Int
+    var startTime: Date
+    var endTime: Date
+
+    init(
+        title: String,
+        category: ActivityCategory,
+        course: Course? = nil,
+        durationMinutes: Int,
+        startTime: Date,
+        endTime: Date
+    ) {
+        self.title = title
+        self.category = category
+        self.course = course
+        self.durationMinutes = durationMinutes
+        self.startTime = startTime
+        self.endTime = endTime
+    }
+}
 
 @Observable
 @MainActor
 final class AppServices {
+    static let shared: AppServices = AppServices(container: PersistenceController.sharedContainer)
+
     let container: ModelContainer
     let clock: any Clock
     var configuration: AppConfiguration
@@ -18,9 +47,11 @@ final class AppServices {
     var selectedDate: Date
     var lastPlan: SchedulePlan?
     var activeSessionTaskID: UUID?
+    var hasCompletedOnboarding: Bool = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
     var remindersEnabled: Bool = true
     private var didBootstrap = false
-    var isReady = false
+    var isReady = true
+    private var cachedAppState: AppStateRecord?
 
     init(
         container: ModelContainer,
@@ -37,6 +68,9 @@ final class AppServices {
         self.icsParser = ICSParser(defaultTimeZone: configuration.timeZone)
         self.reminderService = StudyReminderService()
         self.selectedDate = clock.now
+        self.isReady = true
+
+        bootstrapSync()
     }
 
     var context: ModelContext { container.mainContext }
@@ -46,13 +80,21 @@ final class AppServices {
         return try? context.fetch(FetchDescriptor<FocusTask>()).first { $0.id == activeSessionTaskID && !$0.isCompleted }
     }
 
-    func bootstrap() async {
+    func bootstrapSync() {
         guard !didBootstrap else { return }
         didBootstrap = true
         do {
             let state = try SwiftDataAppStateRepository(context: context).record()
+            cachedAppState = state
             applyStudyPreferences(from: state)
             remindersEnabled = state.remindersEnabled
+            if state.hasCompletedOnboarding {
+                hasCompletedOnboarding = true
+                UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+            } else if hasCompletedOnboarding {
+                state.hasCompletedOnboarding = true
+                try? context.save()
+            }
             if !state.hasResetStudySessionsFor1HourChunks {
                 resetStudySessionsInternal()
                 state.hasResetStudySessionsFor1HourChunks = true
@@ -62,26 +104,15 @@ final class AppServices {
                 activeSessionTaskID = active.id
             }
 
-            // Move the heavy scheduling work to a background context
-            let config = configuration
-            let now = clock.now
-            let plan = try await Task.detached { [container] in
-                let bgContext = ModelContext(container)
-                let manager = ScheduleManager(
-                    engine: AutoSchedulingEngine(),
-                    planner: StudyPlanner(),
-                    configuration: config
-                )
-                return try manager.regenerate(context: bgContext, now: now)
-            }.value
-
-            lastPlan = plan
             refreshWidget()
             Task { await setupReminders() }
         } catch {
             lastPlan = nil
         }
-        isReady = true
+    }
+
+    func bootstrap() async {
+        bootstrapSync()
     }
 
     func applyStudyPreferences(from state: AppStateRecord) {
@@ -131,7 +162,7 @@ final class AppServices {
         )
     }
 
-    func setRemindersEnabled(_ value: Bool) {
+    func updateRemindersEnabled(_ value: Bool) {
         remindersEnabled = value
         do {
             let state = try SwiftDataAppStateRepository(context: context).record()
@@ -235,7 +266,7 @@ final class AppServices {
         let duration = TimeInterval(max(15, durationMinutes) * 60)
         let type = meetingType.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         block.dayOfWeek = day
-        block.startTime = max(0, startTime)
+        block.startTime = max(0.0, startTime)
         block.duration = duration
         block.meetingType = type.isEmpty ? block.meetingType : type
         block.location = location.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -252,6 +283,82 @@ final class AppServices {
 
     func deleteClassBlock(_ block: ClassBlock) {
         context.delete(block)
+        try? context.save()
+        regenerate()
+    }
+
+    func addClassBlock(
+        course: Course,
+        dayOfWeek: Int,
+        startTime: TimeInterval,
+        durationMinutes: Int,
+        meetingType: String,
+        location: String
+    ) {
+        let calendar = configuration.calendar()
+        let now = clock.now
+        let term = AcademicTerm.containing(now, calendar: calendar)
+        let duration = TimeInterval(max(15, durationMinutes) * 60)
+        let type = meetingType.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let normalizedType = type.isEmpty ? "CLASS" : type
+        let loc = location.trimmingCharacters(in: .whitespacesAndNewlines)
+        let code = course.code.uppercased()
+        let startMinutes = Int(startTime / 60)
+        let durationMinutesRounded = Int((duration / 60).rounded())
+        let fingerprint = "\(code)|\(dayOfWeek)|\(startMinutes)|\(durationMinutesRounded)|\(MeetingTypeWeight.normalized(normalizedType))|\(term.id)|manual"
+
+        let block = ClassBlock(
+            dayOfWeek: dayOfWeek,
+            startTime: max(0.0, startTime),
+            duration: duration,
+            cognitiveWeight: MeetingTypeWeight.cognitiveWeight(for: normalizedType),
+            course: course,
+            meetingType: normalizedType,
+            location: loc,
+            fingerprint: fingerprint,
+            timeZoneIdentifier: configuration.timeZone.identifier,
+            summary: "\(course.displayName) (\(normalizedType))",
+            validFrom: term.start(calendar: calendar),
+            validUntil: term.end(calendar: calendar)
+        )
+        context.insert(block)
+        if course.classBlocks == nil {
+            course.classBlocks = []
+        }
+        course.classBlocks?.append(block)
+        try? context.save()
+        regenerate()
+    }
+
+    func updateCourse(_ course: Course, code: String, title: String) {
+        let trimmedCode = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedCode.isEmpty {
+            course.code = trimmedCode
+        }
+        course.title = trimmedTitle
+        try? context.save()
+        regenerate()
+    }
+
+    func addAssessments(_ items: [ParsedSyllabusItem], to course: Course) {
+        for item in items where item.isSelected {
+            let assessment = Assessment(
+                title: item.title,
+                kind: item.kind,
+                start: item.date,
+                end: item.endDate,
+                isAllDay: item.isAllDay,
+                fingerprint: "\(course.code.uppercased())|\(item.title)|\(item.date.timeIntervalSince1970)|syllabus",
+                course: course,
+                extraStudyMinutes: item.extraStudyMinutes
+            )
+            context.insert(assessment)
+            if course.assessments == nil {
+                course.assessments = []
+            }
+            course.assessments?.append(assessment)
+        }
         try? context.save()
         regenerate()
     }
@@ -303,22 +410,147 @@ final class AppServices {
         regenerate()
     }
 
-    private var activeRegenerationTask: Task<Void, Never>?
+    private var debounceTask: Task<Void, Never>?
+    private var isRegeneratingInBackground = false
+    private var hasPendingRegeneration = false
     var isRegenerating = false
 
     func regenerate() {
-        activeRegenerationTask?.cancel()
-        isRegenerating = true
+        // Sprout does not automatically regenerate or rearrange schedules.
+    }
+
+    func generatePlanSuggestions() {
+        performRegeneration()
+    }
+
+    @discardableResult
+    func logActivity(
+        title: String,
+        category: ActivityCategory = .study,
+        durationMinutes: Int,
+        timestamp: Date = Date(),
+        startTime: Date? = nil,
+        focusRating: Int = 0,
+        energyRating: Int = 0,
+        aiUsage: AIUsageLevel = .none,
+        independentAttemptFirst: Bool = true,
+        notes: String = "",
+        isTimerGenerated: Bool = false,
+        linkedCourse: Course? = nil
+    ) -> ActivityLog {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = trimmed.isEmpty ? (linkedCourse?.code ?? category.displayName) : trimmed
+        let log = ActivityLog(
+            title: name,
+            category: category,
+            durationMinutes: durationMinutes,
+            timestamp: timestamp,
+            startTime: startTime,
+            focusRating: focusRating,
+            energyRating: energyRating,
+            aiUsage: aiUsage,
+            independentAttemptFirst: independentAttemptFirst,
+            notes: notes,
+            isTimerGenerated: isTimerGenerated,
+            linkedCourse: linkedCourse
+        )
+        context.insert(log)
+        #if !SKIP
+        GardenService.recordActivityLogGrowth(log: log, in: context)
+        #endif
+        try? context.save()
+        refreshWidget()
+        return log
+    }
+
+    func deleteActivityLog(_ log: ActivityLog) {
+        context.delete(log)
+        try? context.save()
+        refreshWidget()
+    }
+
+    func recentActivityTitles(limit: Int = 8) -> [String] {
+        #if !SKIP
+        let descriptor = FetchDescriptor<ActivityLog>(
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        guard let logs = try? context.fetch(descriptor) else {
+            return defaultRecentActivities
+        }
+        var seen = Set<String>()
+        var result: [String] = []
+        for log in logs {
+            let t = log.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty && seen.insert(t.uppercased()).inserted {
+                result.append(t)
+                if result.count >= limit { break }
+            }
+        }
+        if result.isEmpty {
+            return defaultRecentActivities
+        }
+        return result
+        #else
+        return defaultRecentActivities
+        #endif
+    }
+
+    var defaultRecentActivities: [String] {
+        let courses = (try? context.fetch(FetchDescriptor<Course>())) ?? []
+        var titles = courses.map(\.code)
+        let standard = ["Study", "Problem Set", "Reading", "Gym", "Leisure", "Personal Project"]
+        for s in standard where !titles.contains(s) {
+            titles.append(s)
+        }
+        return Array(titles.prefix(8))
+    }
+
+    // Live Timer state
+    var activeTimerTitle: String = ""
+    var activeTimerCategory: ActivityCategory = .study
+    var activeTimerCourse: Course? = nil
+    var activeTimerStartedAt: Date? = nil
+    var isTimerRunning: Bool { activeTimerStartedAt != nil }
+
+    func startTimer(title: String, category: ActivityCategory, course: Course? = nil) {
+        activeTimerTitle = title
+        activeTimerCategory = category
+        activeTimerCourse = course
+        activeTimerStartedAt = clock.now
+    }
+
+    func stopTimer() -> FocusTimerResult? {
+        guard let started = activeTimerStartedAt else { return nil }
+        let now = clock.now
+        let duration = max(1, Int(now.timeIntervalSince(started) / 60))
+        let result = FocusTimerResult(
+            title: activeTimerTitle,
+            category: activeTimerCategory,
+            course: activeTimerCourse,
+            durationMinutes: duration,
+            startTime: started,
+            endTime: now
+        )
+        activeTimerStartedAt = nil
+        return result
+    }
+
+    func cancelTimer() {
+        activeTimerStartedAt = nil
+    }
+
+    private func performRegeneration() {
+        if isRegeneratingInBackground {
+            hasPendingRegeneration = true
+            return
+        }
+        isRegeneratingInBackground = true
+
         let config = configuration
         let now = clock.now
 
-        activeRegenerationTask = Task { [weak self, container] in
-            // Short debounce to collapse rapid consecutive mutations
-            try? await Task.sleep(nanoseconds: 40_000_000)
-            guard !Task.isCancelled else { return }
-
+        Task { [weak self, container] in
             let planResult: SchedulePlan? = await Task.detached {
-                guard !Task.isCancelled else { return nil }
                 do {
                     let bgContext = ModelContext(container)
                     let manager = ScheduleManager(
@@ -332,41 +564,53 @@ final class AppServices {
                 }
             }.value
 
-            guard !Task.isCancelled else { return }
-
             guard let self else { return }
             self.lastPlan = planResult
-            self.isRegenerating = false
-            self.refreshWidget()
-            await self.refreshReminders()
+            self.isRegeneratingInBackground = false
+
+            if self.hasPendingRegeneration {
+                self.hasPendingRegeneration = false
+                self.performRegeneration()
+            } else {
+                self.isRegenerating = false
+                self.refreshWidget()
+                await self.refreshReminders()
+            }
         }
     }
 
-    var hasCompletedOnboarding: Bool {
-        (try? SwiftDataAppStateRepository(context: context).record().hasCompletedOnboarding) ?? false
+    private func appStateRecord() -> AppStateRecord? {
+        if let cachedAppState { return cachedAppState }
+        let record = try? SwiftDataAppStateRepository(context: context).record()
+        cachedAppState = record
+        return record
     }
 
     var totalFocusXP: Int {
-        (try? SwiftDataAppStateRepository(context: context).record().totalFocusXP) ?? 0
+        appStateRecord()?.totalFocusXP ?? 0
     }
 
     var currentStreakDays: Int {
-        guard let state = try? SwiftDataAppStateRepository(context: context).record(),
+        guard let state = appStateRecord(),
               let lastFocus = state.lastFocusDate else { return 0 }
         let cal = configuration.calendar()
-        if cal.isDateInToday(lastFocus) || cal.isDateInYesterday(lastFocus) {
+        let yesterday = cal.date(byAdding: .day, value: -1, to: Date()) ?? Date.distantPast
+        if cal.isDateInToday(lastFocus) || cal.isDate(lastFocus, inSameDayAs: yesterday) {
             return state.currentStreakDays
         }
         return 0
     }
 
     var longestStreakDays: Int {
-        (try? SwiftDataAppStateRepository(context: context).record().longestStreakDays) ?? 0
+        appStateRecord()?.longestStreakDays ?? 0
     }
 
     func completeOnboarding() {
+        hasCompletedOnboarding = true
+        UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
         do {
             let state = try SwiftDataAppStateRepository(context: context).record()
+            cachedAppState = state
             state.hasCompletedOnboarding = true
             try context.save()
         } catch {}
@@ -412,6 +656,7 @@ final class AppServices {
         } else {
             filtered = parsed
         }
+        #if !SKIP
         let importer = ICSImportService(parser: icsParser, container: container)
         let commit = try await importer.commit(result: filtered)
         await MainActor.run {
@@ -419,6 +664,9 @@ final class AppServices {
             regenerate()
         }
         return commit
+        #else
+        return ICSImportCommit(classBlocks: 0, assessments: 0)
+        #endif
     }
 
     func previewCalendar(data: Data) -> ICSParseResult {
@@ -426,8 +674,10 @@ final class AppServices {
     }
 
     func commitPreview(_ result: ICSParseResult) async {
+        #if !SKIP
         let importer = ICSImportService(parser: icsParser, container: container)
         _ = try? await importer.commit(result: result)
+        #endif
         await MainActor.run {
             completeOnboarding()
             regenerate()
@@ -448,16 +698,16 @@ final class AppServices {
         guard !task.isCompleted else { return }
         task.isCompleted = true
         task.completedAt = clock.now
-        let plant = GardenService.fetchPlant(for: task.id, in: context)
-        let elapsedMinutes = task.sessionStartedAt != nil
-            ? max(1, Int(clock.now.timeIntervalSince(task.sessionStartedAt!) / 60))
-            : 0
-        let focusedMinutes = max(plant?.focusedMinutes ?? 0, elapsedMinutes, 1)
-        task.sessionStartedAt = nil
-        if activeSessionTaskID == task.id {
-            activeSessionTaskID = nil
+        let elapsedMinutes: Int
+        if let sessionStartedAt = task.sessionStartedAt {
+            elapsedMinutes = max(1, Int(clock.now.timeIntervalSince(sessionStartedAt) / 60))
+        } else {
+            elapsedMinutes = 0
         }
-        reminderService.cancel(taskID: task.id)
+        #if !SKIP
+        let plant = GardenService.fetchPlant(for: task.id, in: context)
+        let plantMinutes = plant?.focusedMinutes ?? 0
+        let focusedMinutes = max(plantMinutes, max(elapsedMinutes, 1))
         if let plant {
             _ = GardenService.completeHarvest(
                 plant: plant,
@@ -468,6 +718,12 @@ final class AppServices {
                 context: context
             )
         }
+        #endif
+        task.sessionStartedAt = nil
+        if activeSessionTaskID == task.id {
+            activeSessionTaskID = nil
+        }
+        reminderService.cancel(taskID: task.id)
         try? context.save()
         refreshWidget()
         Task { await refreshReminders() }
@@ -506,9 +762,11 @@ final class AppServices {
                 activeSessionTaskID = nil
             }
             reminderService.cancel(taskID: task.id)
+            #if !SKIP
             if let plant = GardenService.fetchPlant(for: task.id, in: context), !plant.isHarvested {
                 context.delete(plant)
             }
+            #endif
             context.delete(task)
         }
     }
@@ -534,9 +792,11 @@ final class AppServices {
             activeSessionTaskID = nil
         }
         reminderService.cancel(taskID: task.id)
+        #if !SKIP
         if let plant = GardenService.fetchPlant(for: task.id, in: context), !plant.isHarvested {
             context.delete(plant)
         }
+        #endif
         context.delete(task)
         try? context.save()
         regenerate()
@@ -579,9 +839,11 @@ final class AppServices {
         }
         activeSessionTaskID = task.id
         reminderService.cancel(taskID: task.id)
+        #if !SKIP
         if GardenService.fetchPlant(for: task.id, in: context) == nil {
             GardenService.plantSeed(for: task, in: context)
         }
+        #endif
         try? context.save()
     }
 

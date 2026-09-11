@@ -1,4 +1,5 @@
 import Foundation
+#if !SKIP
 import SwiftData
 
 @MainActor
@@ -25,7 +26,7 @@ struct SwiftDataTaskRepository: TaskRepository {
     var context: ModelContext
 
     func all() throws -> [FocusTask] {
-        try context.fetch(FetchDescriptor<FocusTask>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))
+        try context.fetch(FetchDescriptor<FocusTask>(sortBy: [SortDescriptor(\.createdAt, order: SortOrder.reverse)]))
     }
 
     func save() throws {
@@ -72,3 +73,51 @@ struct SwiftDataAppStateRepository: AppStateRepository {
         try context.save()
     }
 }
+#else
+@MainActor
+protocol TaskRepository {
+    func all() throws -> [FocusTask]
+    func save() throws
+}
+
+@MainActor
+protocol CourseRepository {
+    func all() throws -> [Course]
+    func classBlocks() throws -> [ClassBlock]
+    func save() throws
+}
+
+@MainActor
+protocol AppStateRepository {
+    func record() throws -> AppStateRecord
+    func save() throws
+}
+
+@MainActor
+struct SwiftDataTaskRepository: TaskRepository {
+    var context: ModelContext
+
+    func all() throws -> [FocusTask] { [] }
+    func save() throws {}
+}
+
+@MainActor
+struct SwiftDataCourseRepository: CourseRepository {
+    var context: ModelContext
+
+    func all() throws -> [Course] { [] }
+    func classBlocks() throws -> [ClassBlock] { [] }
+    func save() throws {}
+}
+
+@MainActor
+struct SwiftDataAppStateRepository: AppStateRepository {
+    var context: ModelContext
+
+    func record() throws -> AppStateRecord {
+        AppStateRecord()
+    }
+
+    func save() throws {}
+}
+#endif

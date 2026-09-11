@@ -19,7 +19,7 @@ enum SchedulingFixtures {
     }
 
     static func date(_ year: Int, _ month: Int, _ day: Int, _ hour: Int, _ minute: Int, zone: TimeZone = toronto) -> Date {
-        var calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: Calendar.Identifier.gregorian)
         calendar.timeZone = zone
         return calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute))!
     }
@@ -31,7 +31,7 @@ enum SchedulingFixtures {
         weight: Double = 1.5,
         code: String = "CSC108"
     ) -> ExpandedClassBlock {
-        var calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: Calendar.Identifier.gregorian)
         calendar.timeZone = toronto
         let start = calendar.date(bySettingHour: startHour, minute: 0, second: 0, of: day)!
         return ExpandedClassBlock(

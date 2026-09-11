@@ -1,4 +1,6 @@
+#if !SKIP
 import SwiftData
+#endif
 import SwiftUI
 
 // MARK: - Garden Filter
@@ -7,7 +9,6 @@ enum GardenFilter: String, CaseIterable, Identifiable {
     case all = "ALL"
     case blooming = "BLOOMING"
     case mature = "MATURE"
-    case wilted = "WILTED"
 
     var id: String { rawValue }
 }
@@ -15,21 +16,25 @@ enum GardenFilter: String, CaseIterable, Identifiable {
 // MARK: - GardenView
 
 struct GardenView: View {
-    @Environment(AppServices.self) private var services
-    @Environment(\.modelContext) private var modelContext
+    @Environment(AppServices.self) var services
+    #if !SKIP
+    @Environment(\.modelContext) var modelContext: ModelContext
+    #endif
 
-    @Query(sort: [SortDescriptor(\GardenPlant.gridIndex), SortDescriptor(\GardenPlant.plantedAt, order: .reverse)])
-    private var allPlants: [GardenPlant]
+    @Query(sort: [SortDescriptor(\GardenPlant.gridIndex), SortDescriptor(\GardenPlant.plantedAt, order: SortOrder.reverse)])
+    var allPlants: [GardenPlant]
 
     @Query(filter: #Predicate<FocusTask> { !$0.isCompleted }, sort: \FocusTask.scheduledStart)
-    private var pendingTasks: [FocusTask]
+    var pendingTasks: [FocusTask]
 
-    @State private var selectedFilter: GardenFilter = .all
-    @State private var selectedPlant: GardenPlant? = nil
+    @State var selectedFilter: GardenFilter = .all
+    @State var selectedPlant: GardenPlant? = nil
 
     private let columns = [
         GridItem(.adaptive(minimum: 155), spacing: 12)
     ]
+
+    init() {}
 
     var body: some View {
         FGScreen(title: "GARDEN") {
@@ -70,7 +75,11 @@ struct GardenView: View {
     // MARK: - Computed Properties
 
     private var gardenSummary: GardenSummary {
+        #if !SKIP
         GardenService.fetchGardenSummary(in: modelContext)
+        #else
+        GardenSummary()
+        #endif
     }
 
     private var filteredPlants: [GardenPlant] {
@@ -78,11 +87,9 @@ struct GardenView: View {
         case .all:
             return allPlants
         case .blooming:
-            return allPlants.filter { !$0.isMature && !$0.isWilted }
+            return allPlants.filter { !$0.isMature }
         case .mature:
-            return allPlants.filter { $0.isMature && !$0.isWilted }
-        case .wilted:
-            return allPlants.filter { $0.isWilted }
+            return allPlants.filter { $0.isMature }
         }
     }
 
@@ -135,16 +142,18 @@ struct GardenView: View {
             services.startFocusSession(task)
         } else {
             services.addTask(title: "Deep Study Sprint", estimatedMinutes: 25)
+            #if !SKIP
             if let newTask = try? modelContext.fetch(FetchDescriptor<FocusTask>()).first(where: { !$0.isCompleted }) {
                 services.startFocusSession(newTask)
             }
+            #endif
         }
     }
 }
 
 // MARK: - Metrics Header
 
-private struct GardenMetricsHeader: View {
+struct GardenMetricsHeader: View {
     let summary: GardenSummary
     let streakDays: Int
     let totalXP: Int
@@ -160,7 +169,10 @@ private struct GardenMetricsHeader: View {
     }
 
     private var diversityString: String {
-        let discovered = summary.speciesCounts.filter { $0.value > 0 }.count
+        var discovered = 0
+        for count in summary.speciesCounts.values {
+            if count > 0 { discovered += 1 }
+        }
         let total = PlantSpecies.allCases.count
         return "\(discovered)/\(total) DISCOVERED"
     }
@@ -181,7 +193,7 @@ private struct GardenMetricsHeader: View {
                 )
             }
 
-            // Row 2: Diversity & Streak/XP
+            // Row 2: Diversity & Growth
             HStack(spacing: 12) {
                 metricCell(
                     title: "SPECIES DIVERSITY",
@@ -189,8 +201,8 @@ private struct GardenMetricsHeader: View {
                     accent: FGTheme.amber
                 )
                 metricCell(
-                    title: "STREAK & XP",
-                    value: "🔥\(streakDays)d · ⚡️\(totalXP) XP",
+                    title: "GROWTH",
+                    value: "\(totalXP / 60)h \(totalXP % 60)m focused",
                     accent: FGTheme.green
                 )
             }
@@ -232,7 +244,7 @@ private struct GardenMetricsHeader: View {
 
 // MARK: - Filter Bar
 
-private struct GardenFilterBar: View {
+struct GardenFilterBar: View {
     @Binding var selectedFilter: GardenFilter
 
     var body: some View {
@@ -267,7 +279,7 @@ private struct GardenFilterBar: View {
 
 // MARK: - Garden Pot Card
 
-private struct GardenPotCard: View {
+struct GardenPotCard: View {
     let plant: GardenPlant
     let onTap: () -> Void
 

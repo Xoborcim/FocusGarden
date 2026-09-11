@@ -115,7 +115,7 @@ struct AppConfiguration: Equatable, Sendable {
     }
 
     func calendar() -> Calendar {
-        var calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: Calendar.Identifier.gregorian)
         calendar.timeZone = timeZone
         return calendar
     }

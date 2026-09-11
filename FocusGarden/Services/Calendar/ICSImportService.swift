@@ -1,4 +1,5 @@
 import Foundation
+#if !SKIP
 import SwiftData
 
 struct ICSImportService {
@@ -78,7 +79,7 @@ struct ICSImportService {
 
     private func resolveCourse(code: String, title: String, context: ModelContext) throws -> Course {
         let existing = try context.fetch(FetchDescriptor<Course>())
-        if let match = existing.first(where: { $0.code.caseInsensitiveCompare(code) == .orderedSame }) {
+        if let match = existing.first(where: { $0.code.caseInsensitiveCompare(code) == ComparisonResult.orderedSame }) {
             if match.title.isEmpty { match.title = title }
             return match
         }
@@ -87,6 +88,7 @@ struct ICSImportService {
         return course
     }
 }
+#endif
 
 struct ICSImportCommit: Equatable, Sendable {
     var classBlocks: Int

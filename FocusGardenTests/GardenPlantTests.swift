@@ -1,3 +1,5 @@
+#if !SKIP
+import Foundation
 import XCTest
 import SwiftData
 @testable import FocusGarden
@@ -22,21 +24,21 @@ final class GardenPlantTests: XCTestCase {
     // MARK: - Growth Stage Tests
 
     func testGrowthStageCalculations() {
-        XCTAssertEqual(PlantGrowthStage.stage(for: 0.0), .seed)
-        XCTAssertEqual(PlantGrowthStage.stage(for: 0.19), .seed)
-        XCTAssertEqual(PlantGrowthStage.stage(for: 0.20), .sprout)
-        XCTAssertEqual(PlantGrowthStage.stage(for: 0.49), .sprout)
-        XCTAssertEqual(PlantGrowthStage.stage(for: 0.50), .budding)
-        XCTAssertEqual(PlantGrowthStage.stage(for: 0.79), .budding)
-        XCTAssertEqual(PlantGrowthStage.stage(for: 0.80), .blooming)
-        XCTAssertEqual(PlantGrowthStage.stage(for: 0.99), .blooming)
-        XCTAssertEqual(PlantGrowthStage.stage(for: 1.0), .mature)
-        XCTAssertEqual(PlantGrowthStage.stage(for: 1.2), .mature)
+        XCTAssertEqual(PlantGrowthStage.stage(for: 0.0), PlantGrowthStage.seed)
+        XCTAssertEqual(PlantGrowthStage.stage(for: 0.19), PlantGrowthStage.seed)
+        XCTAssertEqual(PlantGrowthStage.stage(for: 0.20), PlantGrowthStage.sprout)
+        XCTAssertEqual(PlantGrowthStage.stage(for: 0.49), PlantGrowthStage.sprout)
+        XCTAssertEqual(PlantGrowthStage.stage(for: 0.50), PlantGrowthStage.budding)
+        XCTAssertEqual(PlantGrowthStage.stage(for: 0.79), PlantGrowthStage.budding)
+        XCTAssertEqual(PlantGrowthStage.stage(for: 0.80), PlantGrowthStage.blooming)
+        XCTAssertEqual(PlantGrowthStage.stage(for: 0.99), PlantGrowthStage.blooming)
+        XCTAssertEqual(PlantGrowthStage.stage(for: 1.0), PlantGrowthStage.mature)
+        XCTAssertEqual(PlantGrowthStage.stage(for: 1.2), PlantGrowthStage.mature)
 
         // Wilted state overrides progress
-        XCTAssertEqual(PlantGrowthStage.stage(for: 0.90, isWilted: true), .wilted)
-        XCTAssertEqual(PlantGrowthStage.stage(for: 0.0, isWilted: true), .wilted)
-        XCTAssertEqual(PlantGrowthStage.stage(for: 1.0, isWilted: true), .wilted)
+        XCTAssertEqual(PlantGrowthStage.stage(for: 0.90, isWilted: true), PlantGrowthStage.wilted)
+        XCTAssertEqual(PlantGrowthStage.stage(for: 0.0, isWilted: true), PlantGrowthStage.wilted)
+        XCTAssertEqual(PlantGrowthStage.stage(for: 1.0, isWilted: true), PlantGrowthStage.wilted)
     }
 
     func testGrowthStageMetadata() {
@@ -57,17 +59,17 @@ final class GardenPlantTests: XCTestCase {
 
     func testPlantSpeciesMapping() {
         // Test prep always yields Cherry Blossom
-        XCTAssertEqual(PlantSpecies.species(for: .computerScience, taskKind: .testPrep), .cherryBlossom)
-        XCTAssertEqual(PlantSpecies.species(for: .mathematics, taskKind: .testPrep), .cherryBlossom)
+        XCTAssertEqual(PlantSpecies.species(for: SubjectCluster.computerScience, taskKind: TaskKind.testPrep), PlantSpecies.cherryBlossom)
+        XCTAssertEqual(PlantSpecies.species(for: SubjectCluster.mathematics, taskKind: TaskKind.testPrep), PlantSpecies.cherryBlossom)
 
         // Subject cluster species mappings for standard study
-        XCTAssertEqual(PlantSpecies.species(for: .computerScience, taskKind: .study), .bonsai)
-        XCTAssertEqual(PlantSpecies.species(for: .mathematics, taskKind: .study), .sunflower)
-        XCTAssertEqual(PlantSpecies.species(for: .physicalSciences, taskKind: .study), .succulent)
-        XCTAssertEqual(PlantSpecies.species(for: .lifeSciences, taskKind: .study), .fern)
-        XCTAssertEqual(PlantSpecies.species(for: .humanities, taskKind: .study), .lavender)
-        XCTAssertEqual(PlantSpecies.species(for: .socialSciences, taskKind: .study), .bamboo)
-        XCTAssertEqual(PlantSpecies.species(for: .general, taskKind: .study), .bonsai)
+        XCTAssertEqual(PlantSpecies.species(for: SubjectCluster.computerScience, taskKind: TaskKind.study), PlantSpecies.bonsai)
+        XCTAssertEqual(PlantSpecies.species(for: SubjectCluster.mathematics, taskKind: TaskKind.study), PlantSpecies.sunflower)
+        XCTAssertEqual(PlantSpecies.species(for: SubjectCluster.physicalSciences, taskKind: TaskKind.study), PlantSpecies.succulent)
+        XCTAssertEqual(PlantSpecies.species(for: SubjectCluster.lifeSciences, taskKind: TaskKind.study), PlantSpecies.fern)
+        XCTAssertEqual(PlantSpecies.species(for: SubjectCluster.humanities, taskKind: TaskKind.study), PlantSpecies.lavender)
+        XCTAssertEqual(PlantSpecies.species(for: SubjectCluster.socialSciences, taskKind: TaskKind.study), PlantSpecies.bamboo)
+        XCTAssertEqual(PlantSpecies.species(for: SubjectCluster.general, taskKind: TaskKind.study), PlantSpecies.bonsai)
     }
 
     func testPlantSpeciesColorAndMetadata() {
@@ -90,23 +92,23 @@ final class GardenPlantTests: XCTestCase {
     func testGardenPlantProperties() {
         let plant = GardenPlant(
             title: "Calculus Review",
-            species: .sunflower,
+            species: PlantSpecies.sunflower,
             targetMinutes: 60
         )
 
         XCTAssertEqual(plant.title, "Calculus Review")
-        XCTAssertEqual(plant.species, .sunflower)
+        XCTAssertEqual(plant.species, PlantSpecies.sunflower)
         XCTAssertEqual(plant.targetMinutes, 60)
         XCTAssertEqual(plant.focusedMinutes, 0)
         XCTAssertEqual(plant.growthProgress, 0.0)
-        XCTAssertEqual(plant.growthStage, .seed)
+        XCTAssertEqual(plant.growthStage, PlantGrowthStage.seed)
         XCTAssertFalse(plant.isHarvested)
         XCTAssertFalse(plant.isMature)
         XCTAssertFalse(plant.isWilted)
 
         // Mutation of species
-        plant.species = .lavender
-        XCTAssertEqual(plant.species, .lavender)
+        plant.species = PlantSpecies.lavender
+        XCTAssertEqual(plant.species, PlantSpecies.lavender)
         XCTAssertEqual(plant.speciesRaw, PlantSpecies.lavender.rawValue)
     }
 
@@ -117,40 +119,40 @@ final class GardenPlantTests: XCTestCase {
         let plant1 = GardenService.plantSeed(for: task1, in: context)
 
         XCTAssertEqual(plant1.title, "CSC207 Architecture")
-        XCTAssertEqual(plant1.species, .bonsai)
+        XCTAssertEqual(plant1.species, PlantSpecies.bonsai)
         XCTAssertEqual(plant1.targetMinutes, 45)
         XCTAssertEqual(plant1.gridIndex, 0)
-        XCTAssertEqual(plant1.growthStage, .seed)
+        XCTAssertEqual(plant1.growthStage, PlantGrowthStage.seed)
         XCTAssertEqual(plant1.taskID, task1.id)
 
         let task2 = FocusTask(title: "MAT223 Linear Algebra", priority: 3, estimatedMinutes: 60)
         let plant2 = GardenService.plantSeed(for: task2, in: context)
 
         XCTAssertEqual(plant2.title, "MAT223 Linear Algebra")
-        XCTAssertEqual(plant2.species, .sunflower)
+        XCTAssertEqual(plant2.species, PlantSpecies.sunflower)
         XCTAssertEqual(plant2.gridIndex, 1)
     }
 
     func testUpdateProgress() {
         let task = FocusTask(title: "BIO120 Cells", priority: 2, estimatedMinutes: 50)
         let plant = GardenService.plantSeed(for: task, in: context)
-        XCTAssertEqual(plant.species, .fern)
+        XCTAssertEqual(plant.species, PlantSpecies.fern)
 
         // 25 / 50 minutes = 50% -> budding stage
         GardenService.updateProgress(plant: plant, focusedMinutes: 25, context: context)
         XCTAssertEqual(plant.focusedMinutes, 25)
         XCTAssertEqual(plant.growthProgress, 0.5, accuracy: 0.001)
-        XCTAssertEqual(plant.growthStage, .budding)
+        XCTAssertEqual(plant.growthStage, PlantGrowthStage.budding)
 
         // 45 / 50 minutes = 90% -> blooming stage
         GardenService.updateProgress(plant: plant, focusedMinutes: 45, context: context)
         XCTAssertEqual(plant.growthProgress, 0.9, accuracy: 0.001)
-        XCTAssertEqual(plant.growthStage, .blooming)
+        XCTAssertEqual(plant.growthStage, PlantGrowthStage.blooming)
 
         // 60 / 50 minutes = clamped to 100% -> mature stage
         GardenService.updateProgress(plant: plant, focusedMinutes: 60, context: context)
         XCTAssertEqual(plant.growthProgress, 1.0, accuracy: 0.001)
-        XCTAssertEqual(plant.growthStage, .mature)
+        XCTAssertEqual(plant.growthStage, PlantGrowthStage.mature)
         XCTAssertTrue(plant.isMature)
     }
 
@@ -166,7 +168,7 @@ final class GardenPlantTests: XCTestCase {
         XCTAssertNotNil(plant.harvestedAt)
         XCTAssertTrue(plant.isHarvested)
         XCTAssertEqual(plant.growthProgress, 1.0)
-        XCTAssertEqual(plant.growthStage, .mature)
+        XCTAssertEqual(plant.growthStage, PlantGrowthStage.mature)
     }
 
     func testWiltAndRevivePlant() {
@@ -175,15 +177,15 @@ final class GardenPlantTests: XCTestCase {
         GardenService.updateProgress(plant: plant, focusedMinutes: 30, context: context)
 
         XCTAssertFalse(plant.isWilted)
-        XCTAssertEqual(plant.growthStage, .budding)
+        XCTAssertEqual(plant.growthStage, PlantGrowthStage.budding)
 
         GardenService.wiltPlant(plant: plant, context: context)
         XCTAssertTrue(plant.isWilted)
-        XCTAssertEqual(plant.growthStage, .wilted)
+        XCTAssertEqual(plant.growthStage, PlantGrowthStage.wilted)
 
         GardenService.revivePlant(plant: plant, context: context)
         XCTAssertFalse(plant.isWilted)
-        XCTAssertEqual(plant.growthStage, .budding)
+        XCTAssertEqual(plant.growthStage, PlantGrowthStage.budding)
     }
 
     func testFetchGardenSummary() {
@@ -206,9 +208,9 @@ final class GardenPlantTests: XCTestCase {
         XCTAssertEqual(summary.totalPlants, 2)
         XCTAssertEqual(summary.matureCount, 1)
         XCTAssertEqual(summary.totalFocusedMinutes, 60)
-        XCTAssertEqual(summary.speciesCounts[.bonsai], 1)
-        XCTAssertEqual(summary.speciesCounts[.sunflower], 1)
-        XCTAssertEqual(summary.speciesCounts[.lavender], 0)
+        XCTAssertEqual(summary.speciesCounts[PlantSpecies.bonsai], 1)
+        XCTAssertEqual(summary.speciesCounts[PlantSpecies.sunflower], 1)
+        XCTAssertEqual(summary.speciesCounts[PlantSpecies.lavender], 0)
     }
 
     // MARK: - AppState Botanical Progression Tests
@@ -272,7 +274,7 @@ final class GardenPlantTests: XCTestCase {
     // MARK: - Streak Progression Pure Function Tests
 
     private var testCalendar: Calendar {
-        var cal = Calendar(identifier: .gregorian)
+        var cal = Calendar(identifier: Calendar.Identifier.gregorian)
         cal.timeZone = TimeZone(secondsFromGMT: 0)!
         return cal
     }
@@ -420,7 +422,7 @@ final class GardenPlantTests: XCTestCase {
         XCTAssertTrue(plant.isHarvested)
         XCTAssertEqual(plant.harvestedAt, day1)
         XCTAssertEqual(plant.growthProgress, 1.0)
-        XCTAssertEqual(plant.growthStage, .mature)
+        XCTAssertEqual(plant.growthStage, PlantGrowthStage.mature)
         XCTAssertEqual(plant.focusedMinutes, 25)
 
         // AppState persistence
@@ -487,7 +489,7 @@ final class GardenPlantTests: XCTestCase {
             taskKind: TaskKind.testPrep.rawValue
         )
         let plant = GardenService.plantSeed(for: prepTask, in: context)
-        XCTAssertEqual(plant.species, .cherryBlossom)
+        XCTAssertEqual(plant.species, PlantSpecies.cherryBlossom)
 
         let result = GardenService.completeHarvest(
             plant: plant,
@@ -620,7 +622,7 @@ final class GardenPlantTests: XCTestCase {
         let fetchedPlant = GardenService.fetchPlant(for: taskID, in: context)
         XCTAssertNotNil(fetchedPlant)
         XCTAssertTrue(plant.isWilted)
-        XCTAssertEqual(plant.growthStage, .wilted)
+        XCTAssertEqual(plant.growthStage, PlantGrowthStage.wilted)
         XCTAssertEqual(plant.focusedMinutes, 2)
 
         // Abandon at 15 minutes: progress preserved and plant wilted
@@ -637,7 +639,7 @@ final class GardenPlantTests: XCTestCase {
         XCTAssertTrue(plant2.isWilted)
         XCTAssertEqual(plant2.focusedMinutes, 15)
         XCTAssertEqual(plant2.growthProgress, 0.5, accuracy: 0.001)
-        XCTAssertEqual(plant2.growthStage, .wilted)
+        XCTAssertEqual(plant2.growthStage, PlantGrowthStage.wilted)
     }
 
     func testHandleSessionExitPausePreservesProgressWithoutWilting() throws {
@@ -658,6 +660,7 @@ final class GardenPlantTests: XCTestCase {
         XCTAssertFalse(plant.isWilted)
         XCTAssertEqual(plant.focusedMinutes, 15)
         XCTAssertEqual(plant.growthProgress, 0.5, accuracy: 0.001)
-        XCTAssertEqual(plant.growthStage, .budding)
+        XCTAssertEqual(plant.growthStage, PlantGrowthStage.budding)
     }
 }
+#endif

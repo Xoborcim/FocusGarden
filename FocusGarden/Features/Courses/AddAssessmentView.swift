@@ -1,4 +1,6 @@
+#if !SKIP
 import SwiftData
+#endif
 import SwiftUI
 
 enum ManualAssessmentDraft: String, Identifiable {
@@ -32,24 +34,24 @@ enum ManualAssessmentDraft: String, Identifiable {
 
     var defaultDurationHours: Double {
         switch self {
-        case .termTest: 2
-        case .homework: 24
-        case .finalExam: 3
+        case .termTest: 2.0
+        case .homework: 24.0
+        case .finalExam: 3.0
         }
     }
 }
 
 struct AddAssessmentView: View {
-    @Environment(AppServices.self) private var services
-    @Environment(\.dismiss) private var dismiss
+    @Environment(AppServices.self) var services
+    @Environment(\.dismiss) var dismiss
     let course: Course
     let draft: ManualAssessmentDraft
 
-    @State private var title: String
-    @State private var date: Date
-    @State private var isAllDay: Bool
-    @State private var durationHours: Double
-    @State private var extraStudyMinutes: Double = 0
+    @State var title: String
+    @State var date: Date
+    @State var isAllDay: Bool
+    @State var durationHours: Double
+    @State var extraStudyMinutes: Double = 0
 
     init(course: Course, draft: ManualAssessmentDraft) {
         self.course = course
@@ -71,25 +73,23 @@ struct AddAssessmentView: View {
                         DatePicker(
                             isAllDay ? "Due" : "Starts",
                             selection: $date,
-                            displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute]
+                            displayedComponents: isAllDay ? [DatePickerComponents.date] : [DatePickerComponents.date, DatePickerComponents.hourAndMinute]
                         )
                         if !isAllDay {
-                            Stepper(
-                                "Length \(Int(durationHours))h",
-                                value: $durationHours,
-                                in: 1...6,
-                                step: 1
-                            )
+                            Stepper("Length \(Int(durationHours))h") {
+                                if durationHours < 6 { durationHours += 1 }
+                            } onDecrement: {
+                                if durationHours > 1 { durationHours -= 1 }
+                            }
                         }
-                        Stepper(
-                            "Extra study \(Int(extraStudyMinutes))m",
-                            value: $extraStudyMinutes,
-                            in: 0...360,
-                            step: 30
-                        )
+                        Stepper("Extra study \(Int(extraStudyMinutes))m") {
+                            if extraStudyMinutes < 360 { extraStudyMinutes += 30 }
+                        } onDecrement: {
+                            if extraStudyMinutes > 0 { extraStudyMinutes -= 30 }
+                        }
                     }
                     Section {
-                        Text("FocusGarden spaces prep inside your lead window before this date. Extra study adds more time on top of the default.")
+                        Text("Sprout spaces prep inside your lead window before this date. Extra study adds more time on top of the default.")
                             .font(FGTheme.mono(.caption))
                             .foregroundStyle(FGTheme.muted)
                     }
@@ -98,8 +98,10 @@ struct AddAssessmentView: View {
                 .font(FGTheme.mono(.body))
             }
             .navigationTitle(draft.navigationTitle)
+            #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

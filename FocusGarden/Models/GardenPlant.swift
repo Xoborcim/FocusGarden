@@ -1,5 +1,7 @@
 import Foundation
+#if !SKIP
 import SwiftData
+#endif
 import SwiftUI
 
 // MARK: - GardenPlant Model
@@ -40,9 +42,15 @@ final class GardenPlant {
         self.speciesRaw = species.rawValue
         self.plantedAt = plantedAt
         self.harvestedAt = harvestedAt
-        self.targetMinutes = max(1, targetMinutes)
-        self.focusedMinutes = max(0, focusedMinutes)
-        self.growthProgress = min(1.0, max(0.0, growthProgress))
+        self.targetMinutes = targetMinutes > 1 ? targetMinutes : 1
+        self.focusedMinutes = focusedMinutes > 0 ? focusedMinutes : 0
+        if growthProgress < 0.0 {
+            self.growthProgress = 0.0
+        } else if growthProgress > 1.0 {
+            self.growthProgress = 1.0
+        } else {
+            self.growthProgress = growthProgress
+        }
         self.isWilted = isWilted
         self.gridIndex = gridIndex
     }
@@ -131,16 +139,15 @@ enum PlantGrowthStage: String, Codable, CaseIterable, Sendable {
         if isWilted {
             return .wilted
         }
-        switch progress {
-        case ..<0.20:
+        if progress < 0.20 {
             return .seed
-        case 0.20..<0.50:
+        } else if progress < 0.50 {
             return .sprout
-        case 0.50..<0.80:
+        } else if progress < 0.80 {
             return .budding
-        case 0.80..<1.0:
+        } else if progress < 1.0 {
             return .blooming
-        default:
+        } else {
             return .mature
         }
     }
@@ -256,42 +263,84 @@ enum PlantSpecies: String, Codable, CaseIterable, Identifiable, Sendable {
     // MARK: - SwiftUI Color Accessors
 
     var primaryColor: Color {
-        Color(hex: primaryColorHex)
+        Color.fromHex(primaryColorHex)
     }
 
     var accentColor: Color {
-        Color(hex: accentColorHex)
+        Color.fromHex(accentColorHex)
     }
 
     var stemColor: Color {
-        Color(hex: stemColorHex)
+        Color.fromHex(stemColorHex)
     }
 }
 
 // MARK: - Color Hex Initializer
 
 extension Color {
-    init(hex: String) {
-        let clean = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: clean).scanHexInt64(&int)
-        let a, r, g, b: UInt64
+    private static func hexToInt(_ hex: String) -> Int? {
+        var val = 0
+        for ch in hex {
+            let digit: Int
+            switch ch {
+            case "0": digit = 0
+            case "1": digit = 1
+            case "2": digit = 2
+            case "3": digit = 3
+            case "4": digit = 4
+            case "5": digit = 5
+            case "6": digit = 6
+            case "7": digit = 7
+            case "8": digit = 8
+            case "9": digit = 9
+            case "a", "A": digit = 10
+            case "b", "B": digit = 11
+            case "c", "C": digit = 12
+            case "d", "D": digit = 13
+            case "e", "E": digit = 14
+            case "f", "F": digit = 15
+            default: return nil
+            }
+            val = val * 16 + digit
+        }
+        return val
+    }
+
+    static func fromHex(_ hex: String) -> Color {
+        var clean = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.hasPrefix("#") {
+            clean = String(clean.dropFirst())
+        }
+        guard let int = hexToInt(clean) else {
+            return Color.clear
+        }
+        var a = 255
+        var r = 0
+        var g = 0
+        var b = 0
         switch clean.count {
         case 3:
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+            r = (int >> 8) * 17
+            g = (int >> 4 & 0xF) * 17
+            b = (int & 0xF) * 17
         case 6:
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+            r = int >> 16
+            g = int >> 8 & 0xFF
+            b = int & 0xFF
         case 8:
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+            a = int >> 24
+            r = int >> 16 & 0xFF
+            g = int >> 8 & 0xFF
+            b = int & 0xFF
         default:
-            (a, r, g, b) = (255, 0, 0, 0)
+            break
         }
-        self.init(
+        return Color(
             .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
+            red: Double(r) / 255.0,
+            green: Double(g) / 255.0,
+            blue: Double(b) / 255.0,
+            opacity: Double(a) / 255.0
         )
     }
 }

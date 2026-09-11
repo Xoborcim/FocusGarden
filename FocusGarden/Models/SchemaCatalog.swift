@@ -1,3 +1,4 @@
+#if !SKIP
 import SwiftData
 
 enum FocusGardenSchema {
@@ -7,6 +8,12 @@ enum FocusGardenSchema {
         ClassBlock.self,
         Assessment.self,
         AppStateRecord.self,
-        GardenPlant.self
+        GardenPlant.self,
+        ActivityLog.self
     ]
 }
+#else
+enum FocusGardenSchema {
+    static let models: [Any.Type] = []
+}
+#endif

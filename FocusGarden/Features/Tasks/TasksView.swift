@@ -1,5 +1,7 @@
 import Foundation
+#if !SKIP
 import SwiftData
+#endif
 import SwiftUI
 
 enum TaskFilter: String, CaseIterable, Identifiable {
@@ -19,17 +21,19 @@ enum TaskGroupMode: String, CaseIterable, Identifiable {
 }
 
 struct TasksView: View {
-    @Environment(AppServices.self) private var services
-    @Query(sort: \FocusTask.scheduledStart) private var tasks: [FocusTask]
-    @Query(sort: \Course.code) private var courses: [Course]
+    @Environment(AppServices.self) var services
+    @Query(sort: \FocusTask.scheduledStart) var tasks: [FocusTask]
+    @Query(sort: \Course.code) var courses: [Course]
 
-    @State private var filter: TaskFilter = .today
-    @State private var groupMode: TaskGroupMode = .byDate
-    @State private var showingNewTask = false
-    @State private var editorTarget: CalendarEditorTarget?
+    @State var filter: TaskFilter = .today
+    @State var groupMode: TaskGroupMode = .byDate
+    @State var showingNewTask = false
+    @State var editorTarget: CalendarEditorTarget?
 
     private var calendar: Calendar { services.configuration.calendar() }
     private var now: Date { services.clock.now }
+
+    init() {}
 
     var body: some View {
         FGScreen(
@@ -312,10 +316,7 @@ struct TasksView: View {
                         .foregroundStyle(FGTheme.muted)
                 }
             } else {
-                let grouped = Dictionary(grouping: upcomingTasks) { task -> Date in
-                    guard let start = task.scheduledStart else { return .distantFuture }
-                    return calendar.startOfDay(for: start)
-                }
+                let grouped = groupedUpcomingTasks
                 let sortedDays = grouped.keys.sorted()
 
                 ForEach(sortedDays, id: \.self) { day in
@@ -340,6 +341,15 @@ struct TasksView: View {
                 }
             }
         }
+    }
+
+    private var groupedUpcomingTasks: [Date: [FocusTask]] {
+        var grouped: [Date: [FocusTask]] = [:]
+        for task in upcomingTasks {
+            let day = task.scheduledStart.map { calendar.startOfDay(for: $0) } ?? Date.distantFuture
+            grouped[day, default: []].append(task)
+        }
+        return grouped
     }
 
     private var unscheduledSection: some View {
@@ -459,7 +469,10 @@ struct TasksView: View {
             }
         }()
 
-        let grouped = Dictionary(grouping: candidateTasks) { $0.subjectCluster }
+        var grouped: [SubjectCluster: [FocusTask]] = [:]
+        for task in candidateTasks {
+            grouped[task.subjectCluster, default: []].append(task)
+        }
         let presentClusters = SubjectCluster.allCases.filter { !(grouped[$0] ?? []).isEmpty }
 
         return VStack(alignment: .leading, spacing: 16) {
@@ -552,11 +565,15 @@ struct TasksView: View {
     }
 
     private func dayHeader(for date: Date) -> String {
-        if calendar.isDateInTomorrow(date) {
-            return "TOMORROW · \(date.formatted(.dateTime.month(.abbreviated).day()))"
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        let formattedDate = formatter.string(from: date)
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date.distantPast
+        if calendar.isDate(date, inSameDayAs: tomorrow) {
+            return "TOMORROW · \(formattedDate)"
         }
         let weekday = WeekdayLabel.names[safe: calendar.component(.weekday, from: date)]?.uppercased() ?? ""
-        return "\(weekday) · \(date.formatted(.dateTime.month(.abbreviated).day()))"
+        return "\(weekday) · \(formattedDate)"
     }
 
     // MARK: - Filtered Queries
@@ -591,7 +608,7 @@ struct TasksView: View {
 
 // MARK: - Task Card
 
-private struct TaskCard: View {
+struct TaskCard: View {
     let task: FocusTask
     let isToday: Bool
     let onTap: () -> Void
@@ -780,27 +797,31 @@ private struct TaskCard: View {
                 .padding(.top, 4)
             }
         }
+        #if !SKIP
         .contentShape(Rectangle())
+        #endif
         .onTapGesture { onTap() }
     }
 }
 
 // MARK: - New Task Sheet
 
-private struct NewTaskSheet: View {
-    @Environment(AppServices.self) private var services
-    @Environment(\.dismiss) private var dismiss
-    @Query(sort: \Course.code) private var courses: [Course]
+struct NewTaskSheet: View {
+    @Environment(AppServices.self) var services
+    @Environment(\.dismiss) var dismiss
+    @Query(sort: \Course.code) var courses: [Course]
 
-    @State private var title = ""
-    @State private var selectedCourseID: UUID?
-    @State private var selectedKind: TaskKind = .study
-    @State private var durationMinutes: Int = 45
-    @State private var priority: Int = 2
-    @State private var hasDeadline = false
-    @State private var deadline: Date = Date().addingTimeInterval(24 * 3600)
+    @State var title = ""
+    @State var selectedCourseID: UUID?
+    @State var selectedKind: TaskKind = .study
+    @State var durationMinutes: Int = 45
+    @State var priority: Int = 2
+    @State var hasDeadline = false
+    @State var deadline: Date = Date().addingTimeInterval(24 * 3600)
 
     private let presetDurations = [15, 30, 45, 60, 90, 120]
+
+    init() {}
 
     var body: some View {
         NavigationStack {
@@ -950,8 +971,10 @@ private struct NewTaskSheet: View {
                 }
             }
             .navigationTitle("NEW TASK")
+            #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

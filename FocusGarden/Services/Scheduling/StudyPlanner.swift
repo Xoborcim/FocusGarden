@@ -45,7 +45,10 @@ struct StudyPlanner: Sendable {
         let horizonEnd = calendar.date(byAdding: .day, value: configuration.horizonDays, to: calendar.startOfDay(for: now)) ?? now
         var items: [GeneratedStudyItem] = []
 
+        var seenCourseCodes = Set<String>()
         for course in courses {
+            let code = course.code.uppercased()
+            guard seenCourseCodes.insert(code).inserted else { continue }
             items.append(contentsOf: weeklyStudy(
                 for: course,
                 now: now,
@@ -56,7 +59,9 @@ struct StudyPlanner: Sendable {
             ))
         }
 
+        var seenFingerprints = Set<String>()
         for assessment in assessments {
+            guard seenFingerprints.insert(assessment.fingerprint).inserted else { continue }
             let due = assessment.isAllDay ? assessment.end.addingTimeInterval(-60) : assessment.start
             guard due > now else { continue }
             if let schoolStart, due <= schoolStart { continue }

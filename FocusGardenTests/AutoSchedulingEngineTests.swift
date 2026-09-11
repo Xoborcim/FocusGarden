@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 @testable import FocusGarden
 
@@ -34,10 +35,10 @@ final class AutoSchedulingEngineTests: XCTestCase {
                 classBlocks: []
             )
         )
-        var calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: Calendar.Identifier.gregorian)
         calendar.timeZone = SchedulingFixtures.toronto
         for placement in plan.placements {
-            let hour = calendar.component(.hour, from: placement.start)
+            let hour = calendar.component(Calendar.Component.hour, from: placement.start)
             XCTAssertGreaterThanOrEqual(hour, 7)
             XCTAssertLessThan(hour, 23)
         }
@@ -62,7 +63,11 @@ final class AutoSchedulingEngineTests: XCTestCase {
             request: SchedulingRequest(now: now, configuration: config, tasks: tasks, classBlocks: [])
         )
         let calendar = config.calendar()
-        let counts = Dictionary(grouping: plan.placements) { calendar.startOfDay(for: $0.start) }.mapValues(\.count)
+        var counts: [Date: Int] = [:]
+        for placement in plan.placements {
+            let dayKey = calendar.startOfDay(for: placement.start)
+            counts[dayKey, default: 0] += 1
+        }
         XCTAssertTrue(counts.values.allSatisfy { $0 <= 4 })
         XCTAssertFalse(plan.unscheduled.isEmpty)
     }
@@ -97,9 +102,9 @@ final class AutoSchedulingEngineTests: XCTestCase {
                 classBlocks: []
             )
         )
-        var calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: Calendar.Identifier.gregorian)
         calendar.timeZone = SchedulingFixtures.toronto
-        let hour = calendar.component(.hour, from: plan.placements.first!.start)
+        let hour = calendar.component(Calendar.Component.hour, from: plan.placements.first!.start)
         XCTAssertGreaterThanOrEqual(hour, 15)
     }
 
@@ -222,21 +227,21 @@ final class AutoSchedulingEngineTests: XCTestCase {
     }
 
     func testPropertyRandomizedNoOverlapOrDuplicates() {
-        var generator = SeededGenerator(seed: 42)
+        var prng = SimplePRNG(seed: 42)
         for _ in 0..<40 {
             let now = SchedulingFixtures.date(2026, 9, 8, 7, 0)
-            let classCount = Int.random(in: 0...4, using: &generator)
+            let classCount = prng.nextInt(min: 0, max: 4)
             let classes: [ExpandedClassBlock] = (0..<classCount).map { index in
                 let hour = [8, 10, 13, 16][index % 4]
                 return SchedulingFixtures.classBlock(day: now, startHour: hour, durationHours: 1, code: "C\(index)")
             }
-            let taskCount = Int.random(in: 1...6, using: &generator)
+            let taskCount = prng.nextInt(min: 1, max: 6)
             let tasks: [PlannableTask] = (0..<taskCount).map { index in
                 SchedulingFixtures.task(
                     title: "T\(index)",
-                    priority: Int.random(in: 1...3, using: &generator),
-                    minutes: [15, 30, 45, 60, 90][Int.random(in: 0...4, using: &generator)],
-                    review: Bool.random(using: &generator)
+                    priority: prng.nextInt(min: 1, max: 3),
+                    minutes: [15, 30, 45, 60, 90][prng.nextInt(min: 0, max: 4)],
+                    review: prng.nextBool()
                 )
             }
             let plan = engine.generate(
@@ -263,8 +268,8 @@ final class AutoSchedulingEngineTests: XCTestCase {
         let validUntil = SchedulingFixtures.date(2026, 9, 10, 23, 59)
         let template = RecurringClassTemplate(
             dayOfWeek: 3,
-            startTime: 13 * 3600,
-            duration: 3600,
+            startTime: 13.0 * 3600.0,
+            duration: 3600.0,
             cognitiveWeight: 1.5,
             courseCode: "CSC148",
             meetingType: "LEC",
@@ -353,8 +358,8 @@ final class AutoSchedulingEngineTests: XCTestCase {
 
         let template = RecurringClassTemplate(
             dayOfWeek: 3, // Tuesday
-            startTime: 13 * 3600, // 13:00
-            duration: 2 * 3600,   // 2 hours -> ends 15:00
+            startTime: 13.0 * 3600.0, // 13:00
+            duration: 2.0 * 3600.0,   // 2 hours -> ends 15:00
             cognitiveWeight: 1.5,
             courseCode: "CSC207",
             meetingType: "LEC",
@@ -440,8 +445,8 @@ final class AutoSchedulingEngineTests: XCTestCase {
             calendar: calendar
         )
         XCTAssertEqual(windows.count, 1)
-        XCTAssertEqual(calendar.component(.hour, from: windows[0].start), 9)
-        XCTAssertEqual(calendar.component(.hour, from: windows[0].end), 23)
+        XCTAssertEqual(calendar.component(Calendar.Component.hour, from: windows[0].start), 9)
+        XCTAssertEqual(calendar.component(Calendar.Component.hour, from: windows[0].end), 23)
 
         let plan = engine.generate(
             request: SchedulingRequest(
@@ -452,7 +457,7 @@ final class AutoSchedulingEngineTests: XCTestCase {
             )
         )
         XCTAssertFalse(plan.placements.isEmpty)
-        XCTAssertTrue(plan.placements.allSatisfy { calendar.component(.hour, from: $0.start) >= 9 })
+        XCTAssertTrue(plan.placements.allSatisfy { calendar.component(Calendar.Component.hour, from: $0.start) >= 9 })
         XCTAssertTrue(plan.placements.allSatisfy { $0.end <= windows[0].end })
     }
 
@@ -575,8 +580,8 @@ final class AutoSchedulingEngineTests: XCTestCase {
         // Gap between classes must be between 12:00 and 13:00 (not 11:00 and 13:00)
         let between = windows.first { $0.start >= c1.end && $0.end <= c3.start }
         XCTAssertNotNil(between)
-        XCTAssertEqual(calendar.component(.hour, from: between!.start), 12)
-        XCTAssertEqual(calendar.component(.hour, from: between!.end), 13)
+        XCTAssertEqual(calendar.component(Calendar.Component.hour, from: between!.start), 12)
+        XCTAssertEqual(calendar.component(Calendar.Component.hour, from: between!.end), 13)
 
         // After last class must start at 14:30 (14:00 + 30m commute)
         let after = windows.first { $0.start >= c3.end }
@@ -662,7 +667,7 @@ final class AutoSchedulingEngineTests: XCTestCase {
 
         let csPlacement = plan.placements.first { $0.taskID == csTask.id }
         XCTAssertNotNil(csPlacement)
-        var calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: Calendar.Identifier.gregorian)
         calendar.timeZone = SchedulingFixtures.toronto
         XCTAssertTrue(calendar.isDate(csPlacement!.start, inSameDayAs: day), "CS task should clump with CS class day")
     }
@@ -672,7 +677,7 @@ final class AutoSchedulingEngineTests: XCTestCase {
         var config = SchedulingFixtures.config(horizon: 1)
         config.windowStartHour = 7
         config.windowEndHour = 23
-        config.chronotype = .morningLark
+        config.chronotype = Chronotype.morningLark
 
         let task = SchedulingFixtures.task(title: "Deep Work", priority: 2, minutes: 60)
         let plan = engine.generate(
@@ -686,9 +691,9 @@ final class AutoSchedulingEngineTests: XCTestCase {
 
         XCTAssertFalse(plan.placements.isEmpty)
         let placement = plan.placements[0]
-        var calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: Calendar.Identifier.gregorian)
         calendar.timeZone = SchedulingFixtures.toronto
-        let hour = calendar.component(.hour, from: placement.start)
+        let hour = calendar.component(Calendar.Component.hour, from: placement.start)
         XCTAssertGreaterThanOrEqual(hour, 8)
         XCTAssertLessThanOrEqual(hour, 12, "Morning Lark should place study in the morning hours")
     }
@@ -698,7 +703,7 @@ final class AutoSchedulingEngineTests: XCTestCase {
         var config = SchedulingFixtures.config(horizon: 1)
         config.windowStartHour = 7
         config.windowEndHour = 23
-        config.chronotype = .nightOwl
+        config.chronotype = Chronotype.nightOwl
 
         let task = SchedulingFixtures.task(title: "Late Deep Work", priority: 2, minutes: 60)
         let plan = engine.generate(
@@ -712,9 +717,9 @@ final class AutoSchedulingEngineTests: XCTestCase {
 
         XCTAssertFalse(plan.placements.isEmpty)
         let placement = plan.placements[0]
-        var calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: Calendar.Identifier.gregorian)
         calendar.timeZone = SchedulingFixtures.toronto
-        let hour = calendar.component(.hour, from: placement.start)
+        let hour = calendar.component(Calendar.Component.hour, from: placement.start)
         XCTAssertGreaterThanOrEqual(hour, 17, "Night Owl should place study in the evening hours")
     }
 
@@ -725,7 +730,7 @@ final class AutoSchedulingEngineTests: XCTestCase {
         // Class 1: 07:00 to 11:00
         let c1 = SchedulingFixtures.classBlock(day: day, startHour: 7, durationHours: 4)
         // Class 2: 11:45 to 23:00 (leaving exactly a 45-minute window from 11:00 to 11:45)
-        var calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: Calendar.Identifier.gregorian)
         calendar.timeZone = SchedulingFixtures.toronto
         let c2Start = calendar.date(bySettingHour: 11, minute: 45, second: 0, of: day)!
         let c2End = calendar.date(bySettingHour: 23, minute: 0, second: 0, of: day)!
@@ -807,7 +812,7 @@ final class AutoSchedulingEngineTests: XCTestCase {
         )
 
         XCTAssertEqual(plan.placements.count, 2)
-        var calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: Calendar.Identifier.gregorian)
         calendar.timeZone = SchedulingFixtures.toronto
         let start1 = plan.placements[0].start
         let start2 = plan.placements[1].start
@@ -855,7 +860,7 @@ final class AutoSchedulingEngineTests: XCTestCase {
             )
         )
 
-        var calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: Calendar.Identifier.gregorian)
         calendar.timeZone = SchedulingFixtures.toronto
         let csPlacement = plan.placements.first { $0.taskID == csTask.id }!
         let mathPlacement = plan.placements.first { $0.taskID == mathTask.id }!
@@ -864,14 +869,15 @@ final class AutoSchedulingEngineTests: XCTestCase {
     }
 }
 
-struct SeededGenerator: RandomNumberGenerator {
-    var state: UInt64
-    init(seed: UInt64) { state = seed == 0 ? 0x9E3779B97F4A7C15 : seed }
-    mutating func next() -> UInt64 {
-        state &+= 0x9E3779B97F4A7C15
-        var z = state
-        z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9
-        z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
-        return z ^ (z >> 31)
+struct SimplePRNG {
+    private var state: Int
+    init(seed: Int = 42) { self.state = seed }
+    mutating func nextInt(min: Int, max: Int) -> Int {
+        state = (state &* 1103515245 &+ 12345) & 0x7fffffff
+        let span = max - min + 1
+        return min + (state % span)
+    }
+    mutating func nextBool() -> Bool {
+        return nextInt(min: 0, max: 1) == 1
     }
 }

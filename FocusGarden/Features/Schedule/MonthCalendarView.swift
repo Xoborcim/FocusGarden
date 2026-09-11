@@ -1,20 +1,27 @@
+#if !SKIP
 import SwiftData
+#endif
 import SwiftUI
 
 struct MonthCalendarSheet: View {
-    @Environment(AppServices.self) private var services
-    @Environment(\.dismiss) private var dismiss
-    @Query private var tasks: [FocusTask]
-    @Query private var classBlocks: [ClassBlock]
-    @Query private var assessments: [Assessment]
+    @Environment(AppServices.self) var services
+    @Environment(\.dismiss) var dismiss
+    @Query var tasks: [FocusTask]
+    @Query var classBlocks: [ClassBlock]
+    @Query var assessments: [Assessment]
 
-    @State private var visibleMonth: Date
+    @State var visibleMonth: Date
 
     init(month: Date) {
         _visibleMonth = State(initialValue: month)
     }
 
     private var calendar: Calendar { services.configuration.calendar() }
+    private var monthTitle: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        return formatter.string(from: visibleMonth).uppercased()
+    }
 
     var body: some View {
         NavigationStack {
@@ -27,7 +34,7 @@ struct MonthCalendarSheet: View {
                             .foregroundStyle(FGTheme.green)
                     }
                     Spacer()
-                    Text(visibleMonth.formatted(.dateTime.month(.wide).year()).uppercased())
+                    Text(monthTitle)
                         .font(FGTheme.mono(.headline, weight: .bold))
                         .foregroundStyle(.white)
                     Spacer()
@@ -64,8 +71,10 @@ struct MonthCalendarSheet: View {
             .padding(16)
             .background(FGTheme.background.ignoresSafeArea())
             .navigationTitle("CALENDAR")
+            #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
@@ -85,7 +94,10 @@ struct MonthCalendarSheet: View {
         let start = calendar.date(from: calendar.dateComponents([.year, .month], from: visibleMonth)) ?? visibleMonth
         let weekday = calendar.component(.weekday, from: start)
         let pad = weekday - 1
-        let count = calendar.range(of: .day, in: .month, for: start)?.count ?? 30
+        let count: Int = {
+            guard let range = calendar.range(of: Calendar.Component.day, in: Calendar.Component.month, for: start) else { return 30 }
+            return range.upperBound - range.lowerBound
+        }()
         var days: [Date?] = Array(repeating: nil, count: pad)
         for offset in 0..<count {
             days.append(calendar.date(byAdding: .day, value: offset, to: start))

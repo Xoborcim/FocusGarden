@@ -1,52 +1,68 @@
+import Foundation
+#if !SKIP
 import SwiftData
+#endif
 import SwiftUI
+#if !SKIP && canImport(UIKit)
 import UIKit
+#endif
 
-@main
-struct FocusGardenApp: App {
+public struct FocusGardenRootView: View {
     let container: ModelContainer
-    @State private var services: AppServices
+    @State var services: AppServices
 
-    init() {
-        Self.configureAppearance()
-        let container = PersistenceController.makeContainer()
+    public init() {
+        let container = PersistenceController.sharedContainer
         self.container = container
-        _services = State(initialValue: AppServices(container: container))
+        _services = State(initialValue: AppServices.shared)
     }
 
-    var body: some Scene {
-        WindowGroup {
-            RootView()
-                .environment(services)
-                .modelContainer(container)
-                .preferredColorScheme(.dark)
-                .task { await services.bootstrap() }
-        }
-    }
-
-    private static func configureAppearance() {
-        UILabel.appearance().shadowColor = .clear
-        UILabel.appearance().shadowOffset = .zero
+    public var body: some View {
+        RootView()
+            .environment(services)
+            .modelContainer(container)
+            .preferredColorScheme(ColorScheme.dark)
+            .task { await services.bootstrap() }
     }
 }
 
+public final class FocusGardenAppDelegate: Sendable {
+    public static let shared = FocusGardenAppDelegate()
+
+    private init() {}
+
+    public func onInit() {
+        #if !SKIP && canImport(UIKit)
+        UILabel.appearance().shadowColor = .clear
+        UILabel.appearance().shadowOffset = .zero
+        #endif
+    }
+
+    public func onLaunch() {}
+    public func onResume() {}
+    public func onPause() {}
+    public func onStop() {}
+    public func onDestroy() {}
+    public func onLowMemory() {}
+}
+
 struct RootView: View {
-    @Environment(AppServices.self) private var services
-    @Query private var appState: [AppStateRecord]
+    @Environment(AppServices.self) var services
+    @Query var appState: [AppStateRecord]
+
+    init() {}
 
     var body: some View {
         let onboarded = appState.first?.hasCompletedOnboarding ?? services.hasCompletedOnboarding
         Group {
             if !onboarded {
                 OnboardingView()
-            } else if !services.isReady {
-                LaunchView()
             } else {
                 RootTabView()
             }
         }
         .background(FGTheme.background.ignoresSafeArea())
-        .fullScreenCover(isPresented: sessionPresented) {
+        .sheet(isPresented: sessionPresented) {
             if let task = services.activeSessionTask {
                 FocusSessionView(task: task)
             }
@@ -66,28 +82,25 @@ struct RootView: View {
 }
 
 struct RootTabView: View {
-    @State private var selectedTab = 0
+    @State var selectedTab = 0
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            ScheduleView()
-                .tabItem { Label("Schedule", systemImage: "calendar") }
+            TodayView()
+                .tabItem { Label("Today", systemImage: "sun.max.fill") }
                 .tag(0)
+            QuickLogView()
+                .tabItem { Label("Log", systemImage: "plus.circle.fill") }
+                .tag(1)
+            InsightsView()
+                .tabItem { Label("Insights", systemImage: "chart.bar.fill") }
+                .tag(2)
             GardenView()
                 .tabItem { Label("Garden", systemImage: "leaf.fill") }
-                .tag(1)
-            TasksView()
-                .tabItem { Label("Tasks", systemImage: "checklist") }
-                .tag(2)
-            CoursesView()
-                .tabItem { Label("Courses", systemImage: "books.vertical.fill") }
                 .tag(3)
-            SettingsView()
-                .tabItem { Label("Settings", systemImage: "square.and.arrow.down") }
-                .tag(4)
         }
         .tint(FGTheme.green)
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(ColorScheme.dark)
     }
 }
 
@@ -113,9 +126,15 @@ struct LaunchView: View {
                     .shadow(color: FGTheme.green.opacity(0.35), radius: 14, x: 0, y: 4)
             }
 
-            Text("FocusGarden")
-                .font(FGTheme.rounded(.title, weight: .bold))
-                .foregroundStyle(.white)
+            VStack(spacing: 6) {
+                Text("Sprout")
+                    .font(FGTheme.rounded(.title, weight: .bold))
+                    .foregroundStyle(.white)
+
+                Text("Make space. Do the work. Grow.")
+                    .font(FGTheme.mono(.caption))
+                    .foregroundStyle(FGTheme.muted)
+            }
 
             ProgressView()
                 .tint(FGTheme.green)

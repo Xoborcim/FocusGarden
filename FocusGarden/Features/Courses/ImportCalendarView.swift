@@ -1,25 +1,28 @@
 import SwiftUI
+#if !SKIP
 import UniformTypeIdentifiers
+#endif
 
 struct CalendarImportHost: ViewModifier {
-    @Environment(AppServices.self) private var services
+    @Environment(AppServices.self) var services
     @Binding var showingImporter: Bool
-    @State private var preview: ICSParseResult?
-    @State private var importError: String?
+    @State var preview: ICSParseResult?
+    @State var importError: String?
 
     func body(content: Content) -> some View {
+        #if !SKIP
         content
             .fileImporter(
                 isPresented: $showingImporter,
-                allowedContentTypes: [UTType(filenameExtension: "ics") ?? .data, .text],
+                allowedContentTypes: [UTType(filenameExtension: "ics") ?? UTType.data, UTType.text],
                 allowsMultipleSelection: false
             ) { result in
                 handle(result)
             }
-            .sheet(item: Binding(
+            .sheet(item: Binding<PreviewBox?>(
                 get: { preview.map { PreviewBox(result: $0) } },
                 set: { preview = $0?.result }
-            )) { box in
+            )) { (box: PreviewBox) in
                 ICSPreviewSheet(result: box.result) { result in
                     Swift.Task { await services.commitPreview(result) }
                 }
@@ -29,6 +32,22 @@ struct CalendarImportHost: ViewModifier {
             } message: {
                 Text(importError ?? "")
             }
+        #else
+        content
+            .sheet(item: Binding<PreviewBox?>(
+                get: { preview.map { PreviewBox(result: $0) } },
+                set: { preview = $0?.result }
+            )) { (box: PreviewBox) in
+                ICSPreviewSheet(result: box.result) { result in
+                    Swift.Task { await services.commitPreview(result) }
+                }
+            }
+            .alert("Import failed", isPresented: Binding(get: { importError != nil }, set: { if !$0 { importError = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(importError ?? "")
+            }
+        #endif
     }
 
     private func handle(_ result: Result<[URL], Error>) {
@@ -37,8 +56,10 @@ struct CalendarImportHost: ViewModifier {
             importError = error.localizedDescription
         case .success(let urls):
             guard let url = urls.first else { return }
+            #if !SKIP
             let accessed = url.startAccessingSecurityScopedResource()
             defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            #endif
             do {
                 let data = try Data(contentsOf: url)
                 preview = services.previewCalendar(data: data)
@@ -49,7 +70,7 @@ struct CalendarImportHost: ViewModifier {
     }
 }
 
-private struct PreviewBox: Identifiable {
+struct PreviewBox: Identifiable {
     var id: String { "preview" }
     var result: ICSParseResult
 }
@@ -57,9 +78,14 @@ private struct PreviewBox: Identifiable {
 struct ICSPreviewSheet: View {
     let result: ICSParseResult
     var onConfirm: (ICSParseResult) -> Void
-    @Environment(AppServices.self) private var services
-    @Environment(\.dismiss) private var dismiss
-    @State private var selectedTerm: AcademicTerm?
+    @Environment(AppServices.self) var services
+    @Environment(\.dismiss) var dismiss
+    @State var selectedTerm: AcademicTerm?
+
+    init(result: ICSParseResult, onConfirm: @escaping (ICSParseResult) -> Void) {
+        self.result = result
+        self.onConfirm = onConfirm
+    }
 
     private var calendar: Calendar { services.configuration.calendar() }
 
@@ -126,7 +152,9 @@ struct ICSPreviewSheet: View {
             }
             .font(FGTheme.mono(.body))
             .navigationTitle("IMPORT PREVIEW")
+            #if !os(macOS)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

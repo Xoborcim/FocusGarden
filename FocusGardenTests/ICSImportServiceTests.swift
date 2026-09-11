@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 @testable import FocusGarden
 
@@ -98,9 +99,9 @@ final class ICSImportServiceTests: XCTestCase {
         XCTAssertEqual(result.previews.count, 1)
         XCTAssertEqual(result.previews[0].meetingType, "LEC")
         XCTAssertEqual(result.assessments.count, 2)
-        XCTAssertEqual(result.assessments.filter { $0.kind == .test }.count, 1)
-        XCTAssertEqual(result.assessments.filter { $0.kind == .homework }.count, 1)
-        XCTAssertTrue(result.assessments.first { $0.kind == .homework }?.isAllDay == true)
+        XCTAssertEqual(result.assessments.filter { $0.kind == AssessmentKind.test }.count, 1)
+        XCTAssertEqual(result.assessments.filter { $0.kind == AssessmentKind.homework }.count, 1)
+        XCTAssertTrue(result.assessments.first { $0.kind == AssessmentKind.homework }?.isAllDay == true)
     }
 
     func testFallAndWinterStaySeparate() {
@@ -122,7 +123,7 @@ final class ICSImportServiceTests: XCTestCase {
         """
         let result = parser.parse(data: Data(ics.utf8))
         XCTAssertEqual(result.previews.count, 2)
-        var calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: Calendar.Identifier.gregorian)
         calendar.timeZone = TimeZone(identifier: "America/Toronto")!
         let terms = result.terms(calendar: calendar)
         XCTAssertEqual(terms.map(\.displayName), ["Fall 2026", "Winter 2027"])
@@ -148,10 +149,10 @@ final class ICSImportServiceTests: XCTestCase {
         """
         let result = parser.parse(data: Data(ics.utf8))
         XCTAssertEqual(result.previews.count, 1)
-        var calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: Calendar.Identifier.gregorian)
         calendar.timeZone = TimeZone(identifier: "America/Toronto")!
         let until = calendar.date(from: DateComponents(year: 2026, month: 12, day: 8, hour: 23, minute: 59, second: 59))!
-        XCTAssertEqual(calendar.component(.month, from: result.previews[0].validUntil), 12)
+        XCTAssertEqual(calendar.component(Calendar.Component.month, from: result.previews[0].validUntil), 12)
         XCTAssertLessThanOrEqual(abs(result.previews[0].validUntil.timeIntervalSince(until)), 2)
     }
 }

@@ -59,34 +59,28 @@ struct PlantCanvasView: View {
     }
 
     var body: some View {
-        Group {
-            if isAnimated {
-                TimelineView(.animation) { timeline in
-                    Canvas { context, canvasSize in
-                        PlantRenderer.render(
-                            context: &context,
-                            size: canvasSize,
-                            species: species,
-                            progress: progress,
-                            isWilted: isWilted,
-                            date: timeline.date
-                        )
-                    }
-                }
-            } else {
-                Canvas { context, canvasSize in
-                    PlantRenderer.render(
-                        context: &context,
-                        size: canvasSize,
-                        species: species,
-                        progress: progress,
-                        isWilted: isWilted,
-                        date: Date(timeIntervalSinceReferenceDate: 0)
-                    )
-                }
-            }
+        #if !SKIP
+        Canvas { context, canvasSize in
+            PlantRenderer.render(
+                context: &context,
+                size: canvasSize,
+                species: species,
+                progress: progress,
+                isWilted: isWilted,
+                date: Date(timeIntervalSinceReferenceDate: 0)
+            )
         }
         .frame(width: size, height: size)
+        #else
+        ZStack {
+            Circle()
+                .fill(species.primaryColor.opacity(0.18))
+            Image(systemName: species.sfSymbol)
+                .font(.system(size: size * 0.45))
+                .foregroundStyle(isWilted ? FGTheme.muted : species.primaryColor)
+        }
+        .frame(width: size, height: size)
+        #endif
     }
 }
 
@@ -105,10 +99,23 @@ extension PlantSpecies {
         case .cherryBlossom: return Color(red: 0.42, green: 0.72, blue: 0.35)
         }
     }
+
+    var sfSymbol: String {
+        switch self {
+        case .bonsai: return "tree.fill"
+        case .sunflower: return "sun.max.fill"
+        case .fern: return "leaf.fill"
+        case .succulent: return "circle.hexagongrid.fill"
+        case .lavender: return "sparkles"
+        case .bamboo: return "lines.measurement.vertical"
+        case .cherryBlossom: return "flower.fill"
+        }
+    }
 }
 
 // MARK: - Procedural Plant Renderer
 
+#if !SKIP
 enum PlantRenderer {
 
     // MARK: Palette & Constants
@@ -1291,11 +1298,11 @@ enum PlantRenderer {
     PlantCanvasPreviewStudio()
 }
 
-private struct PlantCanvasPreviewStudio: View {
-    @State private var progress: Double = 0.85
-    @State private var isWilted: Bool = false
-    @State private var isAnimated: Bool = true
-    @State private var selectedSpecies: PlantSpecies = .sunflower
+struct PlantCanvasPreviewStudio: View {
+    @State var progress: Double = 0.85
+    @State var isWilted: Bool = false
+    @State var isAnimated: Bool = true
+    @State var selectedSpecies: PlantSpecies = .sunflower
 
     var body: some View {
         ScrollView {
@@ -1428,4 +1435,5 @@ private struct PlantCanvasPreviewStudio: View {
         .background(FGTheme.background.ignoresSafeArea())
     }
 }
+#endif
 
