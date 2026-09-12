@@ -108,7 +108,7 @@ struct GardenService {
     }
 
     /// Adds growth to the garden from a logged activity.
-    static func recordActivityLogGrowth(log: ActivityLog, in context: ModelContext) {
+    static func recordActivityLogGrowth(log: ActivityLog, in context: ModelContext, saveContext: Bool = true) {
         guard log.durationMinutes > 0 else { return }
         let appState = fetchOrCreateAppState(in: context)
         appState.totalFocusXP += log.durationMinutes
@@ -151,7 +151,9 @@ struct GardenService {
                 context.insert(plant)
             }
         }
-        try? context.save()
+        if saveContext {
+            try? context.save()
+        }
     }
 
     /// Marks a plant as wilted.

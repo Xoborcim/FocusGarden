@@ -24,6 +24,7 @@ struct PlantDetailSheet: View {
                             reviveActionCard
                         }
                         specificationsCard
+                        astrologicalAlignmentCard
                         timelineCard
                         removePlantButton
                     }
@@ -206,6 +207,85 @@ struct PlantDetailSheet: View {
                 .stroke(FGTheme.muted.opacity(0.2), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 3)
+    }
+
+    // MARK: - Astrological & Tarot Alignment Card
+
+    private var astrologicalAlignmentCard: some View {
+        let zodiac = plant.species.zodiacSign
+        let arcana = plant.species.tarotAffinity
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("ASTROLOGICAL & ARCANA ALIGNMENT")
+                    .font(FGTheme.mono(.caption, weight: .bold))
+                    .foregroundStyle(FGTheme.stainedGlassViolet)
+                Spacer()
+                Text(zodiac.symbol)
+                    .font(.system(size: 20))
+                    .foregroundStyle(zodiac.accentColor)
+            }
+
+            VStack(spacing: 8) {
+                SpecRow(
+                    label: "ZODIAC CONSTELLATION",
+                    value: "\(zodiac.rawValue) (\(zodiac.symbol)) · \(zodiac.element)",
+                    valueColor: zodiac.accentColor
+                )
+                SpecRow(
+                    label: "CELESTIAL RULER",
+                    value: zodiac.celestialRuler,
+                    valueColor: FGTheme.stainedGlassAmber
+                )
+                SpecRow(
+                    label: "MAJOR ARCANA",
+                    value: "\(arcana.romanNumeral). \(arcana.rawValue)",
+                    valueColor: FGTheme.stainedGlassViolet
+                )
+                SpecRow(
+                    label: "ARCANA DOMAIN",
+                    value: arcana.domain,
+                    valueColor: .white
+                )
+            }
+
+            Divider().background(FGTheme.stoneBevel)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("SCHOLAR CONTEMPLATION")
+                    .font(FGTheme.mono(.caption2, weight: .bold))
+                    .foregroundStyle(FGTheme.muted)
+                Text("“\(arcana.contemplation)”")
+                    .font(FGTheme.mono(.caption2))
+                    .foregroundStyle(FGTheme.stoneText)
+                    .lineSpacing(2)
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [FGTheme.surface, FGTheme.stoneElevated],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            FGTheme.stainedGlassViolet.opacity(0.4),
+                            zodiac.accentColor.opacity(0.3)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: FGTheme.stainedGlassViolet.opacity(0.15), radius: 8, x: 0, y: 3)
     }
 
     // MARK: - Timeline Card

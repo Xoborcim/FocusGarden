@@ -29,26 +29,73 @@ struct FocusTimerResult: @unchecked Sendable {
     }
 }
 
+final class AppServicesInternalCache: @unchecked Sendable {
+    var didBootstrap = false
+    var cachedAppState: AppStateRecord? = nil
+    var cachedRecentTitles: [String]? = nil
+    var cachedDefaultActivities: [String]? = nil
+}
+
+#if !SKIP
+import Observation
+#endif
+
 @Observable
 @MainActor
 final class AppServices {
     static let shared: AppServices = AppServices(container: PersistenceController.sharedContainer)
 
+    #if !SKIP
+    @ObservationIgnored
+    #endif
     let container: ModelContainer
+    #if !SKIP
+    @ObservationIgnored
+    #endif
     let clock: any Clock
     var configuration: AppConfiguration
+    #if !SKIP
+    @ObservationIgnored
+    #endif
     let icsParser: ICSParser
+    #if !SKIP
+    @ObservationIgnored
+    #endif
     let reminderService: StudyReminderService
 
     static let remindersEnabledKey = "remindersEnabled"
 
     var selectedDate: Date
+    var selectedTab: Int = 0
     var activeSessionTaskID: UUID?
     var hasCompletedOnboarding: Bool = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
     var remindersEnabled: Bool = (UserDefaults.standard.object(forKey: "remindersEnabled") as? Bool) ?? false
-    private var didBootstrap = false
     var isReady = true
-    private var cachedAppState: AppStateRecord?
+
+    #if !SKIP
+    @ObservationIgnored
+    #endif
+    private let cache = AppServicesInternalCache()
+
+    private var didBootstrap: Bool {
+        get { cache.didBootstrap }
+        set { cache.didBootstrap = newValue }
+    }
+
+    private var cachedAppState: AppStateRecord? {
+        get { cache.cachedAppState }
+        set { cache.cachedAppState = newValue }
+    }
+
+    private var cachedRecentTitles: [String]? {
+        get { cache.cachedRecentTitles }
+        set { cache.cachedRecentTitles = newValue }
+    }
+
+    private var cachedDefaultActivities: [String]? {
+        get { cache.cachedDefaultActivities }
+        set { cache.cachedDefaultActivities = newValue }
+    }
 
     init(
         container: ModelContainer,
@@ -447,27 +494,38 @@ final class AppServices {
         )
         context.insert(log)
         #if !SKIP
-        GardenService.recordActivityLogGrowth(log: log, in: context)
+        GardenService.recordActivityLogGrowth(log: log, in: context, saveContext: false)
         #endif
+        cachedRecentTitles = nil
+        cachedDefaultActivities = nil
         try? context.save()
         return log
     }
 
     func deleteActivityLog(_ log: ActivityLog) {
         context.delete(log)
+        cachedRecentTitles = nil
+        cachedDefaultActivities = nil
         try? context.save()
     }
 
     func recentActivityTitles(limit: Int = 8) -> [String] {
+        if let cachedRecentTitles {
+            return cachedRecentTitles
+        }
         #if !SKIP
-        let descriptor = FetchDescriptor<ActivityLog>(
+        var descriptor = FetchDescriptor<ActivityLog>(
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
         )
+        descriptor.fetchLimit = max(24, limit * 3)
         guard let logs = try? context.fetch(descriptor) else {
-            return defaultRecentActivities
+            let def = defaultRecentActivities
+            cachedRecentTitles = def
+            return def
         }
         var seen = Set<String>()
         var result: [String] = []
+        result.reserveCapacity(limit)
         for log in logs {
             let t = log.title.trimmingCharacters(in: .whitespacesAndNewlines)
             if !t.isEmpty && seen.insert(t.uppercased()).inserted {
@@ -475,23 +533,38 @@ final class AppServices {
                 if result.count >= limit { break }
             }
         }
-        if result.isEmpty {
-            return defaultRecentActivities
-        }
-        return result
+        let finalResult = result.isEmpty ? defaultRecentActivities : result
+        cachedRecentTitles = finalResult
+        return finalResult
         #else
-        return defaultRecentActivities
+        let def = defaultRecentActivities
+        cachedRecentTitles = def
+        return def
         #endif
     }
 
     var defaultRecentActivities: [String] {
-        let courses = (try? context.fetch(FetchDescriptor<Course>())) ?? []
-        var titles = courses.map(\.code)
-        let standard = ["Study", "Problem Set", "Reading", "Gym", "Leisure", "Personal Project"]
-        for s in standard where !titles.contains(s) {
-            titles.append(s)
+        if let cachedDefaultActivities {
+            return cachedDefaultActivities
         }
-        return Array(titles.prefix(8))
+        let courses = (try? context.fetch(FetchDescriptor<Course>())) ?? []
+        var seen = Set<String>()
+        var titles: [String] = []
+        for course in courses {
+            let code = course.code.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !code.isEmpty && seen.insert(code.uppercased()).inserted {
+                titles.append(code)
+                if titles.count >= 8 { break }
+            }
+        }
+        let standard = ["Study", "Problem Set", "Reading", "Gym", "Leisure", "Personal Project"]
+        for s in standard where seen.insert(s.uppercased()).inserted {
+            titles.append(s)
+            if titles.count >= 8 { break }
+        }
+        let result = Array(titles.prefix(8))
+        cachedDefaultActivities = result
+        return result
     }
 
     // Live Timer state
@@ -638,6 +711,7 @@ final class AppServices {
             for log in logs {
                 context.delete(log)
             }
+            cachedRecentTitles = nil
             try? context.save()
         }
     }

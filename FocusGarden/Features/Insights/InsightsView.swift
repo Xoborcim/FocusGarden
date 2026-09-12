@@ -995,12 +995,16 @@ struct InsightsView: View {
         return "\(h).\(tenths)h"
     }
 
+    private static let monthDayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter
+    }()
+
     private func relativeDate(_ date: Date) -> String {
         if calendar.isDate(date, inSameDayAs: now) { return "Today" }
         let yesterday = calendar.date(byAdding: .day, value: -1, to: now) ?? Date.distantPast
         if calendar.isDate(date, inSameDayAs: yesterday) { return "Yesterday" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
+        return Self.monthDayFormatter.string(from: date)
     }
 }

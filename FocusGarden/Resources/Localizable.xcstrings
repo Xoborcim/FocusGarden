@@ -13,6 +13,9 @@
     "· Focus %lld/5" : {
 
     },
+    "“%@”" : {
+
+    },
     "(%@)" : {
 
     },
@@ -42,16 +45,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ (%2$@) Details:"
-          }
-        }
-      }
-    },
-    "%@ / %lldm" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ / %2$lldm"
           }
         }
       }
@@ -105,60 +98,19 @@
     "%lld min" : {
 
     },
-    "%lld/%lldm" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld/%2$lldm"
-          }
-        }
-      }
-    },
     "%lld%%" : {
 
     },
     "%lld%% of logged time was focused study or class" : {
 
     },
-    "%lldD STREAK" : {
-
-    },
     "%lldm" : {
-
-    },
-    "%lldm gap" : {
-
-    },
-    "%lldm/%lldm" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lldm/%2$lldm"
-          }
-        }
-      }
-    },
-    "%llds" : {
 
     },
     "+ Add focus, AI usage, or notes" : {
 
     },
-    "+%lld XP" : {
-
-    },
-    "+2m break" : {
-
-    },
     "+5m" : {
-
-    },
-    "+5m break" : {
-
-    },
-    "+10m" : {
 
     },
     "🌱" : {
@@ -177,12 +129,6 @@
 
     },
     "5 Brutal" : {
-
-    },
-    "Abandon & Wilt Sprout" : {
-
-    },
-    "Abandon this focus session?" : {
 
     },
     "ACTIVITY" : {
@@ -239,6 +185,25 @@
     "Answers are saved for your eyes only. Sprout will never generate tasks or pressure from them." : {
 
     },
+    "Arboretum" : {
+
+    },
+    "ARCANA %@" : {
+
+    },
+    "ARCANA %@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "ARCANA %1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "ASTROLOGICAL & ARCANA ALIGNMENT" : {
+
+    },
     "Attempted independently first" : {
 
     },
@@ -249,18 +214,6 @@
 
     },
     "BOTANICAL TIMELINE" : {
-
-    },
-    "BREAK BETWEEN SESSIONS" : {
-
-    },
-    "BREAK DURATION (%lldm)" : {
-
-    },
-    "break remaining" : {
-
-    },
-    "BREAKS TAKEN" : {
 
     },
     "Cancel" : {
@@ -314,16 +267,6 @@
     "Course Title (e.g. Computer Science I)" : {
 
     },
-    "Course: %@ · %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Course: %1$@ · %2$@"
-          }
-        }
-      }
-    },
     "Courses" : {
 
     },
@@ -331,6 +274,9 @@
 
     },
     "DAILY PRODUCTIVITY THIS WEEK" : {
+
+    },
+    "Daily scholarly alignment" : {
 
     },
     "DATA & STORAGE" : {
@@ -373,6 +319,15 @@
 
     },
     "Done" : {
+
+    },
+    "Draw Another Card" : {
+
+    },
+    "Draw Vigil Arcana" : {
+
+    },
+    "Drawn for this vigil" : {
 
     },
     "Drop" : {
@@ -433,7 +388,7 @@
     "Enrolled" : {
 
     },
-    "Error log / key blind spot note (optional)..." : {
+    "Enter the quiet sanctum of contemplation" : {
 
     },
     "Every focus session plants and nurtures a unique plant specimen tied to your study course. Complete sprints to watch your garden flourish." : {
@@ -448,9 +403,6 @@
     "Final exam" : {
 
     },
-    "Finish & Log" : {
-
-    },
     "FOCUS" : {
 
     },
@@ -460,13 +412,7 @@
     "Focus sprint %lldm" : {
 
     },
-    "FOCUS SPRINT DURATION (%lldm)" : {
-
-    },
     "FOCUS TIMER" : {
-
-    },
-    "FOCUSED" : {
 
     },
     "FocusGarden" : {
@@ -481,16 +427,10 @@
         }
       }
     },
-    "Garden" : {
-
-    },
     "GROWTH INTERRUPTED" : {
 
     },
     "GROWTH STAGES" : {
-
-    },
-    "HARVEST COMPLETE!" : {
 
     },
     "Hide reflection & details" : {
@@ -509,9 +449,6 @@
 
     },
     "HOURLY PRODUCTIVITY TODAY" : {
-
-    },
-    "HOW DID THIS SESSION FEEL?" : {
 
     },
     "HW" : {
@@ -550,16 +487,10 @@
     "Independent: %lld%%" : {
 
     },
-    "Keep Focusing" : {
-
-    },
     "KEY PRODUCTIVITY METRICS" : {
 
     },
     "Kind" : {
-
-    },
-    "Leaving early will cause your growing plant to wilt. Choose 'Pause & Save' instead to keep your progress safe." : {
 
     },
     "Length %lldh" : {
@@ -577,10 +508,10 @@
     "Location" : {
 
     },
-    "Log" : {
+    "LOG ACTIVITY" : {
 
     },
-    "LOG ACTIVITY" : {
+    "LOG VIGIL ACTIVITY" : {
 
     },
     "Make space. Do the work. Grow." : {
@@ -590,12 +521,6 @@
 
     },
     "MATURE" : {
-
-    },
-    "MINDFUL STUDY BREAK" : {
-
-    },
-    "Next: %@" : {
 
     },
     "NO %@ SPECIMENS" : {
@@ -631,6 +556,9 @@
     "No weekly classes this term." : {
 
     },
+    "NOCTURNAL VIGIL" : {
+
+    },
     "None" : {
 
     },
@@ -655,9 +583,6 @@
     "Optional brief reflection or accomplishment" : {
 
     },
-    "Optional Focus Timer" : {
-
-    },
     "Paste Sample" : {
 
     },
@@ -668,9 +593,6 @@
 
     },
     "PLANT DOSSIER" : {
-
-    },
-    "Productivity" : {
 
     },
     "PRODUCTIVITY" : {
@@ -689,6 +611,15 @@
 
     },
     "RECENT SESSIONS" : {
+
+    },
+    "Record" : {
+
+    },
+    "RECORD ACTIVITY" : {
+
+    },
+    "RECORDED" : {
 
     },
     "Reflect on your habits, accomplishments, and focus depth." : {
@@ -724,19 +655,28 @@
     "Reset timetable?" : {
 
     },
-    "RESTED" : {
-
-    },
     "Resume" : {
 
     },
     "Review your week to see where time actually went." : {
 
     },
+    "Sanctum" : {
+
+    },
+    "Sanctum Focus Timer" : {
+
+    },
     "Save" : {
 
     },
-    "SAVE LOG" : {
+    "SCHOLAR CONTEMPLATION" : {
+
+    },
+    "Seal & Log" : {
+
+    },
+    "SEASON OF %@" : {
 
     },
     "Select all" : {
@@ -763,9 +703,6 @@
     "Sprout spaces prep inside your lead window before this date. Extra study adds more time on top of the default." : {
 
     },
-    "STAGE" : {
-
-    },
     "STAGE: %@" : {
 
     },
@@ -778,16 +715,10 @@
     "Starts" : {
 
     },
-    "Starts at %@" : {
-
-    },
     "Study" : {
 
     },
     "Study & class reminders" : {
-
-    },
-    "STUDY CADENCE PRESETS" : {
 
     },
     "STUDY QUALITY & INDEPENDENCE" : {
@@ -806,9 +737,6 @@
     "SYLLABUS TEXT" : {
 
     },
-    "TAKE %lldM BREAK" : {
-
-    },
     "Target achieved! Great work." : {
 
     },
@@ -816,9 +744,6 @@
 
     },
     "Target: outline or draft before consulting AI" : {
-
-    },
-    "TASK TIME" : {
 
     },
     "Term" : {
@@ -881,9 +806,6 @@
     "TIMELINE" : {
 
     },
-    "TIMER CADENCE" : {
-
-    },
     "TIMETABLE & COURSES" : {
 
     },
@@ -902,10 +824,13 @@
     "TODAY'S PRODUCTIVITY" : {
 
     },
+    "Tome" : {
+
+    },
     "Type (LEC, TUT, LAB…)" : {
 
     },
-    "UPCOMING BREAK BUFFER" : {
+    "VIGIL IN PROGRESS" : {
 
     },
     "WARNINGS" : {
@@ -927,9 +852,6 @@
 
     },
     "WILTED" : {
-
-    },
-    "Your %@ blossomed through deep study." : {
 
     }
   },

@@ -66,10 +66,17 @@ struct RootView: View {
 }
 
 struct RootTabView: View {
-    @State var selectedTab = 0
+    @Environment(AppServices.self) var services
+
+    private var selectedTabBinding: Binding<Int> {
+        Binding(
+            get: { services.selectedTab },
+            set: { services.selectedTab = $0 }
+        )
+    }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: selectedTabBinding) {
             TodayView()
                 .tabItem { Label("Sanctum", systemImage: "flame.fill") }
                 .tag(0)

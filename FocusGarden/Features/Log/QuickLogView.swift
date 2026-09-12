@@ -8,6 +8,7 @@ struct QuickLogView: View {
     @Environment(AppServices.self) var services
     @Environment(\.dismiss) var dismiss
     @Query(sort: \Course.code) var courses: [Course]
+    @Query(sort: \ActivityLog.timestamp, order: .reverse) private var recentLogs: [ActivityLog]
 
     @State var title: String
     @State var category: ActivityCategory
@@ -19,6 +20,9 @@ struct QuickLogView: View {
     @State var independentAttemptFirst: Bool = true
     @State var notes: String = ""
     @State var showOptionalDetails: Bool = false
+    @State private var isSaving: Bool = false
+    @State private var showSavedBanner: Bool = false
+    @State private var savedSuccessMessage: String = ""
 
     private let presetDurations = [15, 25, 45, 60, 90, 120]
 
@@ -41,6 +45,29 @@ struct QuickLogView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
+                        // Success Confirmation Banner
+                        if showSavedBanner {
+                            HStack(spacing: 10) {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(FGTheme.stainedGlassViolet)
+                                Text(savedSuccessMessage)
+                                    .font(FGTheme.mono(.caption, weight: .bold))
+                                    .foregroundStyle(.white)
+                                Spacer()
+                            }
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(FGTheme.stoneElevated)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(FGTheme.stainedGlassViolet.opacity(0.6), lineWidth: 1)
+                            )
+                            .transition(.opacity)
+                        }
+
                         // Quick Activity Chips
                         recentChipsSection
 
@@ -48,7 +75,7 @@ struct QuickLogView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("ACTIVITY")
                                 .font(FGTheme.mono(.caption, weight: .bold))
-                                .foregroundStyle(FGTheme.green)
+                                .foregroundStyle(FGTheme.stainedGlassViolet)
 
                             TextField("e.g. MAT305 problem set, Gym, Reading", text: $title)
                                 .font(FGTheme.mono(.body))
@@ -56,7 +83,7 @@ struct QuickLogView: View {
                                 .background(FGTheme.surface)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .stroke(FGTheme.green.opacity(0.6), lineWidth: 1)
+                                        .stroke(FGTheme.stainedGlassViolet.opacity(0.5), lineWidth: 1)
                                 )
                                 .foregroundStyle(.white)
                         }
@@ -191,15 +218,53 @@ struct QuickLogView: View {
                         Button {
                             saveLog()
                         } label: {
-                            Text("SAVE LOG")
-                                .font(FGTheme.mono(.headline, weight: .bold))
-                                .foregroundStyle(FGTheme.ink)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(FGTheme.green)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .shadow(color: FGTheme.green.opacity(0.3), radius: 8, x: 0, y: 3)
+                            HStack(spacing: 8) {
+                                if isSaving {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.headline)
+                                    Text("RECORDED")
+                                        .font(FGTheme.mono(.headline, weight: .bold))
+                                } else {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.headline)
+                                    Text("RECORD ACTIVITY")
+                                        .font(FGTheme.mono(.headline, weight: .bold))
+                                }
+                            }
+                            .foregroundStyle(FGTheme.ink)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                FGTheme.stainedGlassViolet,
+                                                FGTheme.stainedGlassViolet.opacity(0.85)
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.white.opacity(0.4),
+                                                FGTheme.stoneBevel.opacity(0.5)
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1.2
+                                    )
+                            )
+                            .shadow(color: FGTheme.stainedGlassViolet.opacity(0.35), radius: 8, x: 0, y: 3)
                         }
+                        .disabled(isSaving)
+                        .fgTactileButton(fill: true, accent: FGTheme.stainedGlassViolet, cornerRadius: 12)
                         .padding(.top, 8)
                     }
                     .padding(20)
@@ -212,11 +277,51 @@ struct QuickLogView: View {
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                        .font(FGTheme.mono(.subheadline))
-                        .foregroundStyle(FGTheme.muted)
+                    Button("Cancel") {
+                        cancelLog()
+                    }
+                    .font(FGTheme.mono(.subheadline))
+                    .foregroundStyle(FGTheme.muted)
                 }
             }
+        }
+    }
+
+    private var displayedRecentTitles: [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        result.reserveCapacity(8)
+        for log in recentLogs.prefix(30) {
+            let t = log.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty && seen.insert(t.uppercased()).inserted {
+                result.append(t)
+                if result.count >= 8 { break }
+            }
+        }
+        if result.isEmpty {
+            var fallback: [String] = []
+            for course in courses {
+                let code = course.code.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !code.isEmpty && seen.insert(code.uppercased()).inserted {
+                    fallback.append(code)
+                    if fallback.count >= 8 { break }
+                }
+            }
+            let standard = ["Study", "Problem Set", "Reading", "Gym", "Leisure", "Personal Project"]
+            for s in standard where seen.insert(s.uppercased()).inserted {
+                fallback.append(s)
+                if fallback.count >= 8 { break }
+            }
+            return fallback
+        }
+        return result
+    }
+
+    private func selectRecentActivity(_ item: String) {
+        title = item
+        if let match = courses.first(where: { $0.code.uppercased() == item.uppercased() }) {
+            selectedCourseID = match.id
+            category = .study
         }
     }
 
@@ -228,24 +333,19 @@ struct QuickLogView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(services.recentActivityTitles(), id: \.self) { item in
+                    ForEach(displayedRecentTitles, id: \.self) { item in
                         Button {
-                            title = item
-                            // Auto-match course if title equals course code
-                            if let match = courses.first(where: { $0.code.uppercased() == item.uppercased() }) {
-                                selectedCourseID = match.id
-                                category = .study
-                            }
+                            selectRecentActivity(item)
                         } label: {
                             Text(item)
                                 .font(FGTheme.mono(.caption, weight: .bold))
-                                .foregroundStyle(title.uppercased() == item.uppercased() ? FGTheme.green : .white)
+                                .foregroundStyle(title.uppercased() == item.uppercased() ? FGTheme.stainedGlassViolet : .white)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
                                 .background(FGTheme.surface)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .stroke(title.uppercased() == item.uppercased() ? FGTheme.green : FGTheme.muted.opacity(0.3), lineWidth: 1)
+                                        .stroke(title.uppercased() == item.uppercased() ? FGTheme.stainedGlassViolet : FGTheme.muted.opacity(0.3), lineWidth: 1)
                                 )
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
@@ -402,35 +502,18 @@ struct QuickLogView: View {
     }
 
     private var sortedCourses: [Course] {
-        let calendar = services.configuration.calendar()
-        let now = services.clock.now
-        let current = AcademicTerm.containing(now, calendar: calendar)
-        return courses.sorted { a, b in
-            let aCurrent = (a.classBlocks ?? []).contains { $0.belongs(to: current, now: now, calendar: calendar) } ||
-                (a.assessments ?? []).contains { current.contains($0.start, calendar: calendar) }
-            let bCurrent = (b.classBlocks ?? []).contains { $0.belongs(to: current, now: now, calendar: calendar) } ||
-                (b.assessments ?? []).contains { current.contains($0.start, calendar: calendar) }
-            if aCurrent != bCurrent { return aCurrent && !bCurrent }
-            return a.code < b.code
-        }
+        courses
     }
 
     private func coursePickerLabel(for course: Course) -> String {
-        let calendar = services.configuration.calendar()
-        let now = services.clock.now
-        let current = AcademicTerm.containing(now, calendar: calendar)
-        let isCurrent = (course.classBlocks ?? []).contains { $0.belongs(to: current, now: now, calendar: calendar) } ||
-            (course.assessments ?? []).contains { current.contains($0.start, calendar: calendar) }
-        if isCurrent {
-            return course.displayName
-        }
-        if let other = course.classBlocks?.first?.term(now: now, calendar: calendar).displayName {
-            return "\(course.displayName) (\(other))"
-        }
-        return course.displayName
+        course.displayName
     }
 
     private func saveLog() {
+        guard !isSaving else { return }
+        isSaving = true
+        FGTheme.triggerHaptic()
+
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let resolvedCourse = courses.first(where: { $0.id == selectedCourseID })
         let finalTitle = trimmed.isEmpty ? (resolvedCourse?.code ?? category.displayName) : trimmed
@@ -447,6 +530,42 @@ struct QuickLogView: View {
             notes: notes,
             linkedCourse: resolvedCourse
         )
+
+        savedSuccessMessage = "Logged \(durationMinutes)m of \(finalTitle)"
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            showSavedBanner = true
+        }
+
+        // Reset fields for subsequent entries
+        resetForm()
+
         dismiss()
+        services.selectedTab = 0
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation {
+                showSavedBanner = false
+                isSaving = false
+            }
+        }
+    }
+
+    private func cancelLog() {
+        FGTheme.triggerHaptic()
+        resetForm()
+        dismiss()
+        services.selectedTab = 0
+    }
+
+    private func resetForm() {
+        title = ""
+        notes = ""
+        focusRating = 0
+        energyRating = 0
+        aiUsage = .none
+        independentAttemptFirst = true
+        selectedCourseID = nil
+        category = .study
+        durationMinutes = 45
     }
 }

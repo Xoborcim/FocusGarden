@@ -30,6 +30,7 @@ struct TodayView: View {
     @State var showingTimerSheet = false
     @State var showingCoursesSheet = false
     @State var showingSettingsSheet = false
+    @State private var drawnArcana: TarotArcana? = nil
 
     private var calendar: Calendar { services.configuration.calendar() }
     private var now: Date { services.clock.now }
@@ -42,8 +43,11 @@ struct TodayView: View {
                 FGTheme.background.ignoresSafeArea()
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 20) {
                         headerSection
+
+                        // Celestial Alignment & Tarot Arcana Card
+                        arcanaOracleCard
 
                         // Day Summary Reality Cards
                         realityCardsGrid
@@ -226,10 +230,172 @@ struct TodayView: View {
         }
     }
 
-    private var dateText: String {
+    private static let dayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMMM d"
-        return formatter.string(from: now)
+        return formatter
+    }()
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "H:mm"
+        return formatter
+    }()
+
+    private var dateText: String {
+        Self.dayDateFormatter.string(from: now)
+    }
+
+    // MARK: - Celestial & Tarot Oracle Card
+    private var currentZodiac: ZodiacSign {
+        ZodiacSign.current(for: now, calendar: calendar)
+    }
+
+    private var activeArcana: TarotArcana {
+        drawnArcana ?? TarotArcana.dailyCard(for: now, calendar: calendar)
+    }
+
+    private var arcanaOracleCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header Row: Zodiac Sign & Element
+            HStack {
+                HStack(spacing: 6) {
+                    Text(currentZodiac.symbol)
+                        .font(.system(size: 16))
+                        .foregroundStyle(currentZodiac.accentColor)
+                    Text("SEASON OF \(currentZodiac.rawValue.uppercased())")
+                        .font(FGTheme.mono(.caption2, weight: .bold))
+                        .foregroundStyle(currentZodiac.accentColor)
+                        .tracking(1.2)
+                }
+
+                Spacer()
+
+                Text("\(currentZodiac.element.uppercased()) · \(currentZodiac.celestialRuler.uppercased())")
+                    .font(FGTheme.mono(.caption2))
+                    .foregroundStyle(FGTheme.muted)
+            }
+
+            // Tarot Arcana Display Card
+            HStack(alignment: .top, spacing: 14) {
+                // Card Miniature Crest
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(FGTheme.stoneElevated)
+                        .frame(width: 48, height: 68)
+
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    activeArcana.accentColor.opacity(0.8),
+                                    FGTheme.stoneBevel
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.2
+                        )
+                        .frame(width: 48, height: 68)
+
+                    VStack(spacing: 2) {
+                        Text(activeArcana.romanNumeral)
+                            .font(FGTheme.gothic(.caption2, weight: .bold))
+                            .foregroundStyle(activeArcana.accentColor)
+                        Image(systemName: activeArcana.icon)
+                            .font(.system(size: 18))
+                            .foregroundStyle(activeArcana.accentColor)
+                    }
+                }
+                .shadow(color: activeArcana.accentColor.opacity(0.25), radius: 6)
+
+                // Arcana Text & Meditation
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text(activeArcana.rawValue.uppercased())
+                            .font(FGTheme.gothic(.subheadline, weight: .bold))
+                            .foregroundStyle(.white)
+
+                        Text("ARCANA \(activeArcana.romanNumeral)")
+                            .font(FGTheme.mono(.caption2, weight: .bold))
+                            .foregroundStyle(activeArcana.accentColor)
+                            .fgBadge(color: activeArcana.accentColor, opacity: 0.18)
+                    }
+
+                    Text(activeArcana.domain)
+                        .font(FGTheme.mono(.caption2, weight: .semibold))
+                        .foregroundStyle(FGTheme.stainedGlassAmber)
+
+                    Text("“\(activeArcana.contemplation)”")
+                        .font(FGTheme.mono(.caption2))
+                        .foregroundStyle(FGTheme.stoneText.opacity(0.85))
+                        .lineSpacing(2)
+                        .padding(.top, 2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            // Interactive Tarot Card Draw Action
+            HStack {
+                Text(drawnArcana != nil ? "Drawn for this vigil" : "Daily scholarly alignment")
+                    .font(FGTheme.mono(.caption2))
+                    .foregroundStyle(FGTheme.muted)
+
+                Spacer()
+
+                Button {
+                    FGTheme.triggerHaptic()
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                        let all = TarotArcana.allCases.filter { $0 != activeArcana }
+                        drawnArcana = all.randomElement() ?? .hermit
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "sparkle")
+                            .font(.system(size: 10))
+                        Text(drawnArcana != nil ? "Draw Another Card" : "Draw Vigil Arcana")
+                            .font(FGTheme.mono(.caption2, weight: .bold))
+                    }
+                    .foregroundStyle(activeArcana.accentColor)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(activeArcana.accentColor.opacity(0.12))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .stroke(activeArcana.accentColor.opacity(0.35), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.top, 2)
+        }
+        .padding(14)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(FGTheme.stoneSlabGradient)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(FGTheme.stainedGlassSheen(accent: activeArcana.accentColor))
+            }
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            activeArcana.accentColor.opacity(0.45),
+                            FGTheme.stoneBevel.opacity(0.6)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.1
+                )
+        )
+        .shadow(color: Color.black.opacity(0.35), radius: 10, x: 0, y: 4)
     }
 
     // MARK: - Reality Cards
@@ -419,18 +585,19 @@ struct TodayView: View {
     }
 
     private var timelineSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let currentTimeline = timelineItems
+        return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("TIMELINE")
                     .font(FGTheme.mono(.caption2, weight: .bold))
                     .foregroundStyle(FGTheme.muted)
                 Spacer()
-                Text("\(timelineItems.count) events")
+                Text("\(currentTimeline.count) events")
                     .font(FGTheme.mono(.caption2))
                     .foregroundStyle(FGTheme.muted)
             }
 
-            if timelineItems.isEmpty {
+            if currentTimeline.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "sparkles")
                         .font(.title3)
@@ -452,7 +619,7 @@ struct TodayView: View {
                 )
             } else {
                 VStack(spacing: 6) {
-                    ForEach(timelineItems) { item in
+                    ForEach(currentTimeline) { item in
                         timelineRow(for: item)
                     }
                 }
@@ -523,9 +690,7 @@ struct TodayView: View {
     }
 
     private func timeString(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "H:mm"
-        return formatter.string(from: date)
+        Self.timeFormatter.string(from: date)
     }
 
     // MARK: - Action Buttons

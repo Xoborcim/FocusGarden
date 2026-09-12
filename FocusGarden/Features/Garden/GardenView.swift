@@ -310,6 +310,10 @@ struct GardenPotCard: View {
 
                     Spacer(minLength: 2)
 
+                    Text(plant.species.zodiacSign.symbol)
+                        .font(.system(size: 11))
+                        .foregroundStyle(plant.species.zodiacSign.accentColor)
+
                     Text(plant.growthStage.symbol)
                         .font(.system(size: 11))
                 }

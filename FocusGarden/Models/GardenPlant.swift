@@ -238,6 +238,30 @@ enum PlantSpecies: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    var zodiacSign: ZodiacSign {
+        switch self {
+        case .bonsai: return .capricorn
+        case .sunflower: return .leo
+        case .fern: return .virgo
+        case .succulent: return .taurus
+        case .lavender: return .libra
+        case .bamboo: return .aquarius
+        case .cherryBlossom: return .scorpio
+        }
+    }
+
+    var tarotAffinity: TarotArcana {
+        switch self {
+        case .bonsai: return .hermit
+        case .sunflower: return .sun
+        case .fern: return .magician
+        case .succulent: return .emperor
+        case .lavender: return .highPriestess
+        case .bamboo: return .star
+        case .cherryBlossom: return .judgement
+        }
+    }
+
     static func species(for cluster: SubjectCluster, taskKind: TaskKind) -> PlantSpecies {
         if taskKind == .testPrep {
             return .cherryBlossom

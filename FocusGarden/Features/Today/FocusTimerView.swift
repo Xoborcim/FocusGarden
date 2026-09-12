@@ -8,6 +8,7 @@ struct FocusTimerView: View {
     @Environment(AppServices.self) var services
     @Environment(\.dismiss) var dismiss
     @Query(sort: \Course.code) var courses: [Course]
+    @Query(sort: \ActivityLog.timestamp, order: .reverse) private var recentLogs: [ActivityLog]
 
     @State var title: String = ""
     @State var category: ActivityCategory = .study
@@ -98,7 +99,7 @@ struct FocusTimerView: View {
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
-                            ForEach(services.recentActivityTitles(), id: \.self) { item in
+                            ForEach(displayedRecentTitles, id: \.self) { item in
                                 Button {
                                     title = item
                                     if let match = courses.first(where: { $0.code.uppercased() == item.uppercased() }) {
@@ -276,10 +277,18 @@ struct FocusTimerView: View {
                     .font(FGTheme.gothic(.title3, weight: .bold))
                     .foregroundStyle(FGTheme.stoneText)
 
-                Text(category.displayName.uppercased())
-                    .font(FGTheme.mono(.caption2, weight: .bold))
-                    .foregroundStyle(FGTheme.stainedGlassViolet)
-                    .fgBadge(color: FGTheme.stainedGlassViolet, opacity: 0.2)
+                HStack(spacing: 8) {
+                    Text(category.displayName.uppercased())
+                        .font(FGTheme.mono(.caption2, weight: .bold))
+                        .foregroundStyle(FGTheme.stainedGlassViolet)
+                        .fgBadge(color: FGTheme.stainedGlassViolet, opacity: 0.2)
+
+                    let arcana = TarotArcana.dailyCard(for: services.clock.now, calendar: services.configuration.calendar())
+                    Text("ARCANA \(arcana.romanNumeral) · \(arcana.rawValue.uppercased())")
+                        .font(FGTheme.mono(.caption2, weight: .bold))
+                        .foregroundStyle(arcana.accentColor)
+                        .fgBadge(color: arcana.accentColor, opacity: 0.18)
+                }
             }
 
             Text("Elapsed: \(elapsedSeconds / 60)m \(elapsedSeconds % 60)s")
@@ -340,6 +349,36 @@ struct FocusTimerView: View {
                 .fgTactileButton(fill: true, accent: FGTheme.stainedGlassViolet, cornerRadius: 12)
             }
         }
+    }
+
+    private var displayedRecentTitles: [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        result.reserveCapacity(8)
+        for log in recentLogs.prefix(30) {
+            let t = log.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty && seen.insert(t.uppercased()).inserted {
+                result.append(t)
+                if result.count >= 8 { break }
+            }
+        }
+        if result.isEmpty {
+            var fallback: [String] = []
+            for course in courses {
+                let code = course.code.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !code.isEmpty && seen.insert(code.uppercased()).inserted {
+                    fallback.append(code)
+                    if fallback.count >= 8 { break }
+                }
+            }
+            let standard = ["Study", "Problem Set", "Reading", "Gym", "Leisure", "Personal Project"]
+            for s in standard where seen.insert(s.uppercased()).inserted {
+                fallback.append(s)
+                if fallback.count >= 8 { break }
+            }
+            return fallback
+        }
+        return result
     }
 
     private var formattedTimerString: String {
