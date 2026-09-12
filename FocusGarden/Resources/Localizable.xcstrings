@@ -13,7 +13,7 @@
     "· Focus %lld/5" : {
 
     },
-    "· PINNED" : {
+    "(%@)" : {
 
     },
     "%@ · %@" : {
@@ -32,6 +32,16 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ · %2$lldm"
+          }
+        }
+      }
+    },
+    "%@ (%@) Details:" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$@) Details:"
           }
         }
       }
@@ -56,6 +66,16 @@
         }
       }
     },
+    "%@ to %@ target" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ to %2$@ target"
+          }
+        }
+      }
+    },
     "%lld" : {
 
     },
@@ -69,24 +89,21 @@
         }
       }
     },
+    "%lld courses · %lld weekly classes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld courses · %2$lld weekly classes"
+          }
+        }
+      }
+    },
     "%lld events" : {
 
     },
     "%lld min" : {
 
-    },
-    "%lld scheduled" : {
-
-    },
-    "%lld tasks · %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld tasks · %2$@"
-          }
-        }
-      }
     },
     "%lld/%lldm" : {
       "localizations" : {
@@ -101,21 +118,14 @@
     "%lld%%" : {
 
     },
+    "%lld%% of logged time was focused study or class" : {
+
+    },
     "%lldD STREAK" : {
 
     },
     "%lldm" : {
 
-    },
-    "%lldm break before next block at %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lldm break before next block at %2$@"
-          }
-        }
-      }
     },
     "%lldm gap" : {
 
@@ -220,6 +230,9 @@
     "All-day" : {
 
     },
+    "ALL-TIME PRODUCTIVITY" : {
+
+    },
     "Animated" : {
 
     },
@@ -232,15 +245,6 @@
     "AUTO-IMPORT ASSESSMENTS" : {
 
     },
-    "Before first class" : {
-
-    },
-    "Between classes" : {
-
-    },
-    "BLOCK" : {
-
-    },
     "BOTANICAL GROWTH SYSTEM" : {
 
     },
@@ -248,9 +252,6 @@
 
     },
     "BREAK BETWEEN SESSIONS" : {
-
-    },
-    "Break between sessions %lldm" : {
 
     },
     "BREAK DURATION (%lldm)" : {
@@ -262,16 +263,13 @@
     "BREAKS TAKEN" : {
 
     },
-    "CALENDAR" : {
-
-    },
     "Cancel" : {
 
     },
     "CATEGORY" : {
 
     },
-    "Chronotype" : {
+    "Class" : {
 
     },
     "CLASSES" : {
@@ -280,16 +278,22 @@
     "Clear" : {
 
     },
+    "Clear activity logs" : {
+
+    },
+    "Clear activity logs?" : {
+
+    },
+    "Clear Logs" : {
+
+    },
     "Close" : {
 
     },
-    "Commute after last class %lldm" : {
+    "COGNITIVE INDEPENDENCE & AI" : {
 
     },
     "COMPLETE REVIEW" : {
-
-    },
-    "Completed %@" : {
 
     },
     "Course" : {
@@ -326,19 +330,19 @@
     "Custom: %lldm" : {
 
     },
+    "DAILY PRODUCTIVITY THIS WEEK" : {
+
+    },
+    "DATA & STORAGE" : {
+
+    },
     "Date" : {
 
     },
     "Day" : {
 
     },
-    "Deadline" : {
-
-    },
     "Delete" : {
-
-    },
-    "DELETE" : {
 
     },
     "Delete Class" : {
@@ -347,7 +351,10 @@
     "Delete this class timing?" : {
 
     },
-    "Deletes courses, classes, tests, homework, and study blocks." : {
+    "Deletes all courses, timetable classes, activity history, and plants." : {
+
+    },
+    "Deletes imported courses, weekly class blocks, and assessments. Activity logs are kept." : {
 
     },
     "Deselect all" : {
@@ -366,9 +373,6 @@
 
     },
     "Done" : {
-
-    },
-    "DONE" : {
 
     },
     "Drop" : {
@@ -395,22 +399,10 @@
     "DURATION" : {
 
     },
-    "DURATION (%lldm)" : {
-
-    },
     "e.g. MAT305 problem set, Gym, Reading" : {
 
     },
-    "e.g. Read chapter 4, Problem set 2" : {
-
-    },
-    "Earliest" : {
-
-    },
     "Edit" : {
-
-    },
-    "EDIT" : {
 
     },
     "EDIT CLASS" : {
@@ -425,9 +417,6 @@
     "Edit details" : {
 
     },
-    "Edits apply to every week this term." : {
-
-    },
     "Elapsed: %lldm %llds" : {
       "localizations" : {
         "en" : {
@@ -438,10 +427,10 @@
         }
       }
     },
-    "ENERGY & CHRONOTYPE" : {
+    "ENERGY LEVEL (1–5)" : {
 
     },
-    "ENERGY LEVEL (1–5)" : {
+    "Enrolled" : {
 
     },
     "Error log / key blind spot note (optional)..." : {
@@ -474,6 +463,9 @@
     "FOCUS SPRINT DURATION (%lldm)" : {
 
     },
+    "FOCUS TIMER" : {
+
+    },
     "FOCUSED" : {
 
     },
@@ -492,16 +484,10 @@
     "Garden" : {
 
     },
-    "GROUP:" : {
-
-    },
     "GROWTH INTERRUPTED" : {
 
     },
     "GROWTH STAGES" : {
-
-    },
-    "Guarantees rest time between consecutive study blocks so you stay energized." : {
 
     },
     "HARVEST COMPLETE!" : {
@@ -522,6 +508,9 @@
     "HONEST AWARENESS" : {
 
     },
+    "HOURLY PRODUCTIVITY TODAY" : {
+
+    },
     "HOW DID THIS SESSION FEEL?" : {
 
     },
@@ -537,9 +526,6 @@
     "Import / update ICS calendar" : {
 
     },
-    "Import a .ics timetable. Sprout tracks your classes and focus, helping you log and reflect with clarity." : {
-
-    },
     "Import failed" : {
 
     },
@@ -552,7 +538,7 @@
     "Import syllabus..." : {
 
     },
-    "Imports only your lectures and tutorials. Study slots generate automatically around them." : {
+    "Imports lectures, tutorials, and labs from your campus .ics calendar to display them on your daily timeline." : {
 
     },
     "Independent attempt first" : {
@@ -564,22 +550,13 @@
     "Independent: %lld%%" : {
 
     },
-    "Insights" : {
-
-    },
-    "INSIGHTS" : {
-
-    },
     "Keep Focusing" : {
 
     },
-    "Keeps this %@ block and moves other study around it." : {
+    "KEY PRODUCTIVITY METRICS" : {
 
     },
     "Kind" : {
-
-    },
-    "Latest" : {
 
     },
     "Leaving early will cause your growing plant to wilt. Choose 'Pause & Save' instead to keep your progress safe." : {
@@ -618,12 +595,6 @@
     "MINDFUL STUDY BREAK" : {
 
     },
-    "NEW START" : {
-
-    },
-    "NEW TASK" : {
-
-    },
     "Next: %@" : {
 
     },
@@ -633,37 +604,25 @@
     "No activities logged yet today." : {
 
     },
+    "No activity logs recorded." : {
+
+    },
+    "No activity recorded yet in this timeframe." : {
+
+    },
     "NO ASSESSMENTS DETECTED" : {
 
     },
     "NO BOTANICAL SEEDS YET" : {
 
     },
-    "No completed tasks yet." : {
-
-    },
     "No courses found for %@." : {
-
-    },
-    "NO COURSES YET" : {
 
     },
     "No logged sessions for this course yet." : {
 
     },
-    "No logs recorded." : {
-
-    },
-    "No study logs in this timeframe." : {
-
-    },
-    "NO TASKS IN THIS VIEW" : {
-
-    },
-    "NO TASKS SCHEDULED TODAY" : {
-
-    },
-    "NO UPCOMING SCHEDULED TASKS" : {
+    "No study logs recorded in this timeframe." : {
 
     },
     "No weekly classes found." : {
@@ -675,28 +634,22 @@
     "None" : {
 
     },
-    "None / General" : {
-
-    },
     "NOTES" : {
 
     },
     "Notes..." : {
 
     },
-    "Notify before study" : {
+    "NOTIFICATIONS" : {
 
     },
     "OBSERVED PATTERNS" : {
 
     },
+    "OF TARGET" : {
+
+    },
     "OK" : {
-
-    },
-    "Only the current term is scheduled. Weekly study is 1.2× that term’s class time. Tests and homework get extra blocks before the due date." : {
-
-    },
-    "Open calendar" : {
 
     },
     "Optional brief reflection or accomplishment" : {
@@ -717,61 +670,55 @@
     "PLANT DOSSIER" : {
 
     },
-    "Prep window %lld weeks" : {
+    "Productivity" : {
 
     },
-    "PRIORITY" : {
+    "PRODUCTIVITY" : {
+
+    },
+    "PRODUCTIVITY BY COURSE / ACTIVITY" : {
 
     },
     "QUICK SELECTION" : {
 
     },
-    "Re-splits study sessions into 1-hour lecture chunks. Preserves your saved tests, homework, and courses." : {
-
-    },
-    "Rebuild study slots" : {
-
-    },
     "RECENT ACTIVITIES" : {
 
     },
-    "RECENT LOGS" : {
+    "RECENT ACTIVITY LOGS" : {
 
     },
     "RECENT SESSIONS" : {
 
     },
-    "Reflect on your study habits, distractions, and independence." : {
+    "Reflect on your habits, accomplishments, and focus depth." : {
 
     },
     "REFLECTIVE INQUIRY" : {
 
     },
-    "REMINDERS" : {
+    "REMOVE FROM GARDEN" : {
 
     },
-    "REMOVE FROM GARDEN" : {
+    "Removes all recorded focus sessions and activity history (%lld logged). Preserves courses and classes." : {
 
     },
     "Renaming or changing difficulty adjusts weekly study generation and exam prep pacing." : {
 
     },
-    "Reset" : {
+    "Reset all app data" : {
 
     },
-    "RESET" : {
+    "Reset all app data?" : {
 
     },
-    "Reset Sessions" : {
-
-    },
-    "Reset study sessions" : {
-
-    },
-    "Reset study sessions?" : {
+    "Reset Everything" : {
 
     },
     "Reset timetable" : {
+
+    },
+    "Reset Timetable" : {
 
     },
     "Reset timetable?" : {
@@ -783,12 +730,6 @@
     "Resume" : {
 
     },
-    "RESUME" : {
-
-    },
-    "REVIEW" : {
-
-    },
     "Review your week to see where time actually went." : {
 
     },
@@ -798,48 +739,19 @@
     "SAVE LOG" : {
 
     },
-    "SCHEDULE MANUALLY" : {
-
-    },
     "Select all" : {
 
     },
-    "Sends a small alert %lld minutes before each study block." : {
+    "Sends an alert %lld minutes before scheduled classes and study sessions." : {
 
     },
-    "Set Deadline" : {
+    "Sets default sprint duration and mindful break length for timer sessions." : {
 
     },
     "Short break %lldm" : {
 
     },
-    "SMART GROUPING: %lld courses clumped (%@)" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "SMART GROUPING: %1$lld courses clumped (%2$@)"
-          }
-        }
-      }
-    },
-    "SMART GROUPING: Clustered %@ block (context affinity)" : {
-
-    },
-    "SMART GROUPING: Related fields (%@ + %@)" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "SMART GROUPING: Related fields (%1$@ + %2$@)"
-          }
-        }
-      }
-    },
     "SPECIMEN SPECS" : {
-
-    },
-    "Splits focus sessions into manageable sprints with relaxing breaks." : {
 
     },
     "Sprout" : {
@@ -857,9 +769,6 @@
     "STAGE: %@" : {
 
     },
-    "START" : {
-
-    },
     "START FOCUS" : {
 
     },
@@ -872,23 +781,27 @@
     "Starts at %@" : {
 
     },
+    "Study" : {
+
+    },
+    "Study & class reminders" : {
+
+    },
     "STUDY CADENCE PRESETS" : {
-
-    },
-    "STUDY HOURS" : {
-
-    },
-    "STUDY INDEPENDENCE & AI" : {
-
-    },
-    "STUDY PLAN" : {
 
     },
     "STUDY QUALITY & INDEPENDENCE" : {
 
     },
-    "STUDY TIME BY COURSE / ACTIVITY" : {
-
+    "Study: %@ · Class: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Study: %1$@ · Class: %2$@"
+          }
+        }
+      }
     },
     "SYLLABUS TEXT" : {
 
@@ -896,19 +809,16 @@
     "TAKE %lldM BREAK" : {
 
     },
+    "Target achieved! Great work." : {
+
+    },
     "TARGET INTERVAL" : {
 
     },
-    "Target: solve or outline before asking AI" : {
-
-    },
-    "Task" : {
+    "Target: outline or draft before consulting AI" : {
 
     },
     "TASK TIME" : {
-
-    },
-    "TASK TITLE" : {
 
     },
     "Term" : {
@@ -923,13 +833,16 @@
     "Test" : {
 
     },
-    "Test and homework study is spaced inside this window before each due date. Those blocks take priority over weekly study." : {
-
-    },
     "TESTS" : {
 
     },
     "There are no botanical specimens currently matching the %@ filter criteria." : {
+
+    },
+    "This completely resets the app, wiping all courses, classes, activity logs, and garden plants." : {
+
+    },
+    "This deletes all recorded activity logs. Your courses and weekly timetable will be kept." : {
 
     },
     "This file has more than one term. Only %@ will be added." : {
@@ -938,10 +851,7 @@
     "THIS MONTH" : {
 
     },
-    "This regenerates all lecture study into 1-hour chunks. Your saved tests and homework will be kept." : {
-
-    },
-    "This removes every imported course and generated study slot." : {
+    "This removes every imported course, class block, and assessment." : {
 
     },
     "This sprout wilted when the focus session was abandoned. Revive it to restore healthy botanical momentum." : {
@@ -953,10 +863,16 @@
     "THIS WEEK" : {
 
     },
+    "THIS WEEK'S PRODUCTIVITY" : {
+
+    },
     "This will remove all scheduled lectures, study blocks, and tests for this course." : {
 
     },
     "This will remove this class timing and rebuild your schedule around remaining classes." : {
+
+    },
+    "TIME DISTRIBUTION" : {
 
     },
     "TIME SPENT THIS WEEK" : {
@@ -966,9 +882,6 @@
 
     },
     "TIMER CADENCE" : {
-
-    },
-    "TIMER INTERVALS & BREAKS" : {
 
     },
     "TIMETABLE & COURSES" : {
@@ -986,13 +899,10 @@
     "TODAY AT A GLANCE" : {
 
     },
-    "TYPE" : {
+    "TODAY'S PRODUCTIVITY" : {
 
     },
     "Type (LEC, TUT, LAB…)" : {
-
-    },
-    "UPCOMING" : {
 
     },
     "UPCOMING BREAK BUFFER" : {
@@ -1004,22 +914,19 @@
     "WEEKLY MEETING" : {
 
     },
+    "WEEKLY PRODUCTIVITY TREND" : {
+
+    },
     "WEEKLY REVIEW" : {
 
     },
     "What are you focusing on?" : {
 
     },
-    "WHERE YOUR TIME WENT" : {
-
-    },
     "Wilted" : {
 
     },
     "WILTED" : {
-
-    },
-    "You're all caught up for today! Enjoy your free time or add a custom study block." : {
 
     },
     "Your %@ blossomed through deep study." : {

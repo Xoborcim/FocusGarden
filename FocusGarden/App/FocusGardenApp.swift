@@ -93,7 +93,7 @@ struct RootTabView: View {
                 .tabItem { Label("Log", systemImage: "plus.circle.fill") }
                 .tag(1)
             InsightsView()
-                .tabItem { Label("Insights", systemImage: "chart.bar.fill") }
+                .tabItem { Label("Productivity", systemImage: "chart.bar.fill") }
                 .tag(2)
             GardenView()
                 .tabItem { Label("Garden", systemImage: "leaf.fill") }

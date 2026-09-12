@@ -27,6 +27,12 @@ struct StudyReminderService: Sendable {
     func refresh(tasks: [FocusTask], now: Date) async {
         guard isSupportedEnvironment else { return }
         let center = UNUserNotificationCenter.current()
+        if tasks.isEmpty {
+            center.removeAllPendingNotificationRequests()
+            center.removeAllDeliveredNotifications()
+            return
+        }
+
         let pending = await center.pendingNotificationRequests()
         let stale = pending
             .map(\.identifier)
@@ -68,8 +74,18 @@ struct StudyReminderService: Sendable {
     }
 
     func cancel(taskID: UUID) {
-        UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: [Self.idPrefix + taskID.uuidString])
+        guard isSupportedEnvironment else { return }
+        let center = UNUserNotificationCenter.current()
+        let identifier = Self.idPrefix + taskID.uuidString
+        center.removePendingNotificationRequests(withIdentifiers: [identifier])
+        center.removeDeliveredNotifications(withIdentifiers: [identifier])
+    }
+
+    func cancelAll() {
+        guard isSupportedEnvironment else { return }
+        let center = UNUserNotificationCenter.current()
+        center.removeAllPendingNotificationRequests()
+        center.removeAllDeliveredNotifications()
     }
 }
 #else
@@ -85,5 +101,7 @@ struct StudyReminderService: Sendable {
     func refresh(tasks: [FocusTask], now: Date) async {}
 
     func cancel(taskID: UUID) {}
+
+    func cancelAll() {}
 }
 #endif

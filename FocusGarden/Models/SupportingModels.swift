@@ -46,7 +46,7 @@ final class AppStateRecord {
     var studyEndMinute: Int = 0
     var allowBeforeFirstClass: Bool = false
     var allowBetweenClasses: Bool = true
-    var remindersEnabled: Bool = true
+    var remindersEnabled: Bool = false
     var assessmentLeadWeeks: Int = 2
     var commuteMinutesAfterLastClass: Int = 30
     var breakMinutesBetweenSessions: Int = 15
@@ -73,7 +73,7 @@ final class AppStateRecord {
         self.studyEndMinute = 0
         self.allowBeforeFirstClass = false
         self.allowBetweenClasses = true
-        self.remindersEnabled = true
+        self.remindersEnabled = false
         self.assessmentLeadWeeks = 2
         self.commuteMinutesAfterLastClass = 30
         self.breakMinutesBetweenSessions = 15
@@ -118,4 +118,9 @@ public enum MasteryRating: Int, CaseIterable, Identifiable, Codable, Sendable {
         case .mastered: return "Longer interval (3.5×) · Mastered"
         }
     }
+}
+
+public enum WeekdayLabel {
+    public static let short = ["", "S", "M", "T", "W", "T", "F", "S"]
+    public static let names = ["", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 }

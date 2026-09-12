@@ -40,15 +40,16 @@ final class AppServices {
     let engine: AutoSchedulingEngine
     let planner: StudyPlanner
     var scheduleManager: ScheduleManager
-    let widgetService: WidgetSnapshotService
     let icsParser: ICSParser
     let reminderService: StudyReminderService
+
+    static let remindersEnabledKey = "remindersEnabled"
 
     var selectedDate: Date
     var lastPlan: SchedulePlan?
     var activeSessionTaskID: UUID?
     var hasCompletedOnboarding: Bool = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
-    var remindersEnabled: Bool = true
+    var remindersEnabled: Bool = (UserDefaults.standard.object(forKey: "remindersEnabled") as? Bool) ?? false
     private var didBootstrap = false
     var isReady = true
     private var cachedAppState: AppStateRecord?
@@ -64,7 +65,6 @@ final class AppServices {
         self.engine = AutoSchedulingEngine()
         self.planner = StudyPlanner()
         self.scheduleManager = ScheduleManager(engine: engine, planner: planner, configuration: configuration)
-        self.widgetService = WidgetSnapshotService()
         self.icsParser = ICSParser(defaultTimeZone: configuration.timeZone)
         self.reminderService = StudyReminderService()
         self.selectedDate = clock.now
@@ -87,7 +87,19 @@ final class AppServices {
             let state = try SwiftDataAppStateRepository(context: context).record()
             cachedAppState = state
             applyStudyPreferences(from: state)
-            remindersEnabled = state.remindersEnabled
+            if let saved = UserDefaults.standard.object(forKey: Self.remindersEnabledKey) as? Bool {
+                remindersEnabled = saved
+                if state.remindersEnabled != saved {
+                    state.remindersEnabled = saved
+                    try? context.save()
+                }
+            } else {
+                remindersEnabled = state.remindersEnabled
+                UserDefaults.standard.set(remindersEnabled, forKey: Self.remindersEnabledKey)
+            }
+            if !remindersEnabled {
+                reminderService.cancelAll()
+            }
             if state.hasCompletedOnboarding {
                 hasCompletedOnboarding = true
                 UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
@@ -104,7 +116,6 @@ final class AppServices {
                 activeSessionTaskID = active.id
             }
 
-            refreshWidget()
             Task { await setupReminders() }
         } catch {
             lastPlan = nil
@@ -164,11 +175,16 @@ final class AppServices {
 
     func updateRemindersEnabled(_ value: Bool) {
         remindersEnabled = value
+        UserDefaults.standard.set(value, forKey: Self.remindersEnabledKey)
         do {
             let state = try SwiftDataAppStateRepository(context: context).record()
+            cachedAppState = state
             state.remindersEnabled = value
             try context.save()
         } catch {}
+        if !value {
+            reminderService.cancelAll()
+        }
         Task { await setupReminders() }
     }
 
@@ -410,17 +426,10 @@ final class AppServices {
         regenerate()
     }
 
-    private var debounceTask: Task<Void, Never>?
-    private var isRegeneratingInBackground = false
-    private var hasPendingRegeneration = false
     var isRegenerating = false
 
     func regenerate() {
         // Sprout does not automatically regenerate or rearrange schedules.
-    }
-
-    func generatePlanSuggestions() {
-        performRegeneration()
     }
 
     @discardableResult
@@ -459,14 +468,12 @@ final class AppServices {
         GardenService.recordActivityLogGrowth(log: log, in: context)
         #endif
         try? context.save()
-        refreshWidget()
         return log
     }
 
     func deleteActivityLog(_ log: ActivityLog) {
         context.delete(log)
         try? context.save()
-        refreshWidget()
     }
 
     func recentActivityTitles(limit: Int = 8) -> [String] {
@@ -537,46 +544,6 @@ final class AppServices {
 
     func cancelTimer() {
         activeTimerStartedAt = nil
-    }
-
-    private func performRegeneration() {
-        if isRegeneratingInBackground {
-            hasPendingRegeneration = true
-            return
-        }
-        isRegeneratingInBackground = true
-
-        let config = configuration
-        let now = clock.now
-
-        Task { [weak self, container] in
-            let planResult: SchedulePlan? = await Task.detached {
-                do {
-                    let bgContext = ModelContext(container)
-                    let manager = ScheduleManager(
-                        engine: AutoSchedulingEngine(),
-                        planner: StudyPlanner(),
-                        configuration: config
-                    )
-                    return try manager.regenerate(context: bgContext, now: now)
-                } catch {
-                    return nil
-                }
-            }.value
-
-            guard let self else { return }
-            self.lastPlan = planResult
-            self.isRegeneratingInBackground = false
-
-            if self.hasPendingRegeneration {
-                self.hasPendingRegeneration = false
-                self.performRegeneration()
-            } else {
-                self.isRegenerating = false
-                self.refreshWidget()
-                await self.refreshReminders()
-            }
-        }
     }
 
     private func appStateRecord() -> AppStateRecord? {
@@ -684,12 +651,32 @@ final class AppServices {
         }
     }
 
-    func resetAll() {
+    func clearAllActivityLogs() {
+        if let logs = try? context.fetch(FetchDescriptor<ActivityLog>()) {
+            for log in logs {
+                context.delete(log)
+            }
+            try? context.save()
+        }
+    }
+
+    func resetTimetable() {
         do {
             try scheduleManager.resetAll(context: context)
             lastPlan = nil
             activeSessionTaskID = nil
-            refreshWidget()
+            try? context.save()
+            Task { await refreshReminders() }
+        } catch {}
+    }
+
+    func resetAll() {
+        do {
+            try scheduleManager.resetAll(context: context)
+            clearAllActivityLogs()
+            lastPlan = nil
+            activeSessionTaskID = nil
+            try? context.save()
             Task { await refreshReminders() }
         } catch {}
     }
@@ -725,7 +712,6 @@ final class AppServices {
         }
         reminderService.cancel(taskID: task.id)
         try? context.save()
-        refreshWidget()
         Task { await refreshReminders() }
     }
 
@@ -735,7 +721,6 @@ final class AppServices {
         task.completedAt = nil
         try? context.save()
         regenerate()
-        refreshWidget()
         Task { await refreshReminders() }
     }
 
@@ -750,7 +735,6 @@ final class AppServices {
         resetStudySessionsInternal()
         try? context.save()
         regenerate()
-        refreshWidget()
         Task { await refreshReminders() }
     }
 
@@ -784,7 +768,6 @@ final class AppServices {
         context.delete(course)
         try? context.save()
         regenerate()
-        refreshWidget()
     }
 
     func deleteTask(_ task: FocusTask) {
@@ -800,7 +783,6 @@ final class AppServices {
         context.delete(task)
         try? context.save()
         regenerate()
-        refreshWidget()
     }
 
     func addTask(
@@ -824,7 +806,6 @@ final class AppServices {
         context.insert(task)
         try? context.save()
         regenerate()
-        refreshWidget()
     }
 
     func startFocusSession(_ task: FocusTask) {
@@ -877,7 +858,6 @@ final class AppServices {
         task.scheduleReason = "Pinned where you put it."
         try? context.save()
         regenerate()
-        refreshWidget()
     }
 
     func unlockTaskSchedule(_ task: FocusTask) {
@@ -885,24 +865,15 @@ final class AppServices {
         task.isSoftLocked = false
         try? context.save()
         regenerate()
-        refreshWidget()
     }
 
-    func refreshWidget() {
-        do {
-            let tasks = try SwiftDataTaskRepository(context: context).all()
-            let pending = tasks.filter { !$0.isCompleted }
-            let next = pending
-                .filter { $0.scheduledStart != nil }
-                .sorted { ($0.scheduledStart ?? .distantFuture) < ($1.scheduledStart ?? .distantFuture) }
-                .first
-            widgetService.publish(nextTask: next, pendingCount: pending.count)
-        } catch {}
+    func cancelAllReminders() {
+        reminderService.cancelAll()
     }
 
     private func setupReminders() async {
         guard remindersEnabled else {
-            await reminderService.refresh(tasks: [], now: clock.now)
+            reminderService.cancelAll()
             return
         }
         _ = await reminderService.requestAuthorization()
@@ -911,7 +882,7 @@ final class AppServices {
 
     private func refreshReminders() async {
         guard remindersEnabled else {
-            await reminderService.refresh(tasks: [], now: clock.now)
+            reminderService.cancelAll()
             return
         }
         let tasks = (try? SwiftDataTaskRepository(context: context).all()) ?? []

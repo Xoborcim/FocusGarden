@@ -6,11 +6,13 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(AppServices.self) var services
     @Query var blocks: [ClassBlock]
-    @Query var assessments: [Assessment]
     @Query var courses: [Course]
+    @Query var allLogs: [ActivityLog]
+
     @State var showingImporter = false
-    @State var showingResetConfirm = false
-    @State var showingResetStudyConfirm = false
+    @State var showingClearLogsConfirm = false
+    @State var showingResetTimetableConfirm = false
+    @State var showingResetAllConfirm = false
 
     init() {}
 
@@ -29,96 +31,66 @@ struct SettingsView: View {
                                 .foregroundStyle(FGTheme.muted)
                         }
                     }
-                    Text("Imports only your lectures and tutorials. Study slots generate automatically around them.")
+                    Text("Imports lectures, tutorials, and labs from your campus .ics calendar to display them on your daily timeline.")
                         .font(FGTheme.mono(.caption))
                         .foregroundStyle(FGTheme.muted)
-                }
-                Section("STUDY HOURS") {
-                    DatePicker(
-                        "Earliest",
-                        selection: earliestBinding,
-                        displayedComponents: DatePickerComponents.hourAndMinute
-                    )
-                    DatePicker(
-                        "Latest",
-                        selection: latestBinding,
-                        displayedComponents: DatePickerComponents.hourAndMinute
-                    )
-                    Toggle("Before first class", isOn: beforeClassBinding)
-                    Toggle("Between classes", isOn: betweenClassesBinding)
-                    Stepper("Commute after last class \(services.configuration.commuteMinutesAfterLastClass)m") {
-                        if commuteBinding.wrappedValue < 180 { commuteBinding.wrappedValue += 5 }
-                    } onDecrement: {
-                        if commuteBinding.wrappedValue > 0 { commuteBinding.wrappedValue -= 5 }
-                    }
-                    Stepper("Break between sessions \(services.configuration.bufferMinutes)m") {
-                        if breakMinutesBinding.wrappedValue < 60 { breakMinutesBinding.wrappedValue += 5 }
-                    } onDecrement: {
-                        if breakMinutesBinding.wrappedValue > 5 { breakMinutesBinding.wrappedValue -= 5 }
-                    }
-                    Text("Guarantees rest time between consecutive study blocks so you stay energized.")
-                        .font(FGTheme.mono(.caption))
-                        .foregroundStyle(FGTheme.muted)
-                }
-                Section("ENERGY & CHRONOTYPE") {
-                    Picker("Chronotype", selection: chronotypeBinding) {
-                        ForEach(Chronotype.allCases) { type in
-                            Label(type.displayName, systemImage: type.icon)
-                                .tag(type)
+
+                    if !courses.isEmpty {
+                        HStack {
+                            Text("Enrolled")
+                                .foregroundStyle(FGTheme.muted)
+                            Spacer()
+                            Text("\(visibleCourseCount) courses · \(visibleBlockCount) weekly classes")
+                                .foregroundStyle(FGTheme.green)
                         }
-                    }
-                    .pickerStyle(.segmented)
-                    Text(services.configuration.chronotype.description)
                         .font(FGTheme.mono(.caption))
-                        .foregroundStyle(FGTheme.muted)
+                    }
                 }
-                Section("TIMER INTERVALS & BREAKS") {
+
+                Section("FOCUS TIMER") {
                     Stepper("Focus sprint \(services.configuration.timerFocusMinutes)m") {
-                        if focusIntervalBinding.wrappedValue < 90 { focusIntervalBinding.wrappedValue += 5 }
+                        if focusIntervalBinding.wrappedValue < 120 { focusIntervalBinding.wrappedValue += 5 }
                     } onDecrement: {
-                        if focusIntervalBinding.wrappedValue > 10 { focusIntervalBinding.wrappedValue -= 5 }
+                        if focusIntervalBinding.wrappedValue > 5 { focusIntervalBinding.wrappedValue -= 5 }
                     }
                     Stepper("Short break \(services.configuration.timerBreakMinutes)m") {
                         if breakIntervalBinding.wrappedValue < 30 { breakIntervalBinding.wrappedValue += 1 }
                     } onDecrement: {
-                        if breakIntervalBinding.wrappedValue > 2 { breakIntervalBinding.wrappedValue -= 1 }
+                        if breakIntervalBinding.wrappedValue > 1 { breakIntervalBinding.wrappedValue -= 1 }
                     }
-                    Text("Splits focus sessions into manageable sprints with relaxing breaks.")
+                    Text("Sets default sprint duration and mindful break length for timer sessions.")
                         .font(FGTheme.mono(.caption))
                         .foregroundStyle(FGTheme.muted)
                 }
-                Section("STUDY PLAN") {
-                    Text("Only the current term is scheduled. Weekly study is 1.2× that term’s class time. Tests and homework get extra blocks before the due date.")
-                        .font(FGTheme.mono(.caption))
-                        .foregroundStyle(FGTheme.muted)
-                    Stepper("Prep window \(services.configuration.assessmentLeadWeeks) weeks") {
-                        if leadWeeksBinding.wrappedValue < 8 { leadWeeksBinding.wrappedValue += 1 }
-                    } onDecrement: {
-                        if leadWeeksBinding.wrappedValue > 1 { leadWeeksBinding.wrappedValue -= 1 }
-                    }
-                    Text("Test and homework study is spaced inside this window before each due date. Those blocks take priority over weekly study.")
-                        .font(FGTheme.mono(.caption))
-                        .foregroundStyle(FGTheme.muted)
-                    Button("Rebuild study slots") { services.regenerate() }
-                }
-                Section("REMINDERS") {
-                    Toggle("Notify before study", isOn: remindersBinding)
-                    Text("Sends a small alert \(StudyReminderService.leadMinutes) minutes before each study block.")
+
+                Section("NOTIFICATIONS") {
+                    Toggle("Study & class reminders", isOn: remindersBinding)
+                    Text("Sends an alert \(StudyReminderService.leadMinutes) minutes before scheduled classes and study sessions.")
                         .font(FGTheme.mono(.caption))
                         .foregroundStyle(FGTheme.muted)
                 }
-                Section("RESET") {
-                    Button("Reset study sessions", role: .destructive) {
-                        showingResetStudyConfirm = true
+
+                Section("DATA & STORAGE") {
+                    Button("Clear activity logs", role: .destructive) {
+                        showingClearLogsConfirm = true
                     }
-                    Text("Re-splits study sessions into 1-hour lecture chunks. Preserves your saved tests, homework, and courses.")
+                    .disabled(allLogs.isEmpty)
+                    Text("Removes all recorded focus sessions and activity history (\(allLogs.count) logged). Preserves courses and classes.")
                         .font(FGTheme.mono(.caption))
                         .foregroundStyle(FGTheme.muted)
 
                     Button("Reset timetable", role: .destructive) {
-                        showingResetConfirm = true
+                        showingResetTimetableConfirm = true
                     }
-                    Text("Deletes courses, classes, tests, homework, and study blocks.")
+                    .disabled(courses.isEmpty && blocks.isEmpty)
+                    Text("Deletes imported courses, weekly class blocks, and assessments. Activity logs are kept.")
+                        .font(FGTheme.mono(.caption))
+                        .foregroundStyle(FGTheme.muted)
+
+                    Button("Reset all app data", role: .destructive) {
+                        showingResetAllConfirm = true
+                    }
+                    Text("Deletes all courses, timetable classes, activity history, and plants.")
                         .font(FGTheme.mono(.caption))
                         .foregroundStyle(FGTheme.muted)
                 }
@@ -127,99 +99,36 @@ struct SettingsView: View {
             .font(FGTheme.mono(.body))
         }
         .calendarImporter(isPresented: $showingImporter)
-        .alert("Reset study sessions?", isPresented: $showingResetStudyConfirm) {
+        .alert("Clear activity logs?", isPresented: $showingClearLogsConfirm) {
             Button("Cancel", role: .cancel) {}
-            Button("Reset Sessions", role: .destructive) { services.resetStudySessions() }
+            Button("Clear Logs", role: .destructive) {
+                services.clearAllActivityLogs()
+            }
         } message: {
-            Text("This regenerates all lecture study into 1-hour chunks. Your saved tests and homework will be kept.")
+            Text("This deletes all recorded activity logs. Your courses and weekly timetable will be kept.")
         }
-        .alert("Reset timetable?", isPresented: $showingResetConfirm) {
+        .alert("Reset timetable?", isPresented: $showingResetTimetableConfirm) {
             Button("Cancel", role: .cancel) {}
-            Button("Reset", role: .destructive) { services.resetAll() }
+            Button("Reset Timetable", role: .destructive) {
+                services.resetTimetable()
+            }
         } message: {
-            Text("This removes every imported course and generated study slot.")
+            Text("This removes every imported course, class block, and assessment.")
         }
-    }
-
-    private var earliestBinding: Binding<Date> {
-        Binding(
-            get: {
-                services.clockTime(
-                    hour: services.configuration.windowStartHour,
-                    minute: services.configuration.windowStartMinute
-                )
-            },
-            set: { newStart in
-                services.setStudyWindow(
-                    start: newStart,
-                    end: services.clockTime(
-                        hour: services.configuration.windowEndHour,
-                        minute: services.configuration.windowEndMinute
-                    )
-                )
+        .alert("Reset all app data?", isPresented: $showingResetAllConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Reset Everything", role: .destructive) {
+                services.resetAll()
             }
-        )
-    }
-
-    private var latestBinding: Binding<Date> {
-        Binding(
-            get: {
-                services.clockTime(
-                    hour: services.configuration.windowEndHour,
-                    minute: services.configuration.windowEndMinute
-                )
-            },
-            set: { newEnd in
-                services.setStudyWindow(
-                    start: services.clockTime(
-                        hour: services.configuration.windowStartHour,
-                        minute: services.configuration.windowStartMinute
-                    ),
-                    end: newEnd
-                )
-            }
-        )
-    }
-
-    private var beforeClassBinding: Binding<Bool> {
-        Binding(
-            get: { services.configuration.allowBeforeFirstClass },
-            set: { services.setAllowBeforeFirstClass($0) }
-        )
-    }
-
-    private var betweenClassesBinding: Binding<Bool> {
-        Binding(
-            get: { services.configuration.allowBetweenClasses },
-            set: { services.setAllowBetweenClasses($0) }
-        )
+        } message: {
+            Text("This completely resets the app, wiping all courses, classes, activity logs, and garden plants.")
+        }
     }
 
     private var remindersBinding: Binding<Bool> {
         Binding(
             get: { services.remindersEnabled },
             set: { services.updateRemindersEnabled($0) }
-        )
-    }
-
-    private var leadWeeksBinding: Binding<Int> {
-        Binding(
-            get: { services.configuration.assessmentLeadWeeks },
-            set: { services.setAssessmentLeadWeeks($0) }
-        )
-    }
-
-    private var commuteBinding: Binding<Int> {
-        Binding(
-            get: { services.configuration.commuteMinutesAfterLastClass },
-            set: { services.setCommuteMinutesAfterLastClass($0) }
-        )
-    }
-
-    private var breakMinutesBinding: Binding<Int> {
-        Binding(
-            get: { services.configuration.bufferMinutes },
-            set: { services.setBreakMinutesBetweenSessions($0) }
         )
     }
 
@@ -234,13 +143,6 @@ struct SettingsView: View {
         Binding(
             get: { services.configuration.timerBreakMinutes },
             set: { services.setTimerIntervals(focus: services.configuration.timerFocusMinutes, breakMinutes: $0) }
-        )
-    }
-
-    private var chronotypeBinding: Binding<Chronotype> {
-        Binding(
-            get: { services.configuration.chronotype },
-            set: { services.setChronotype($0) }
         )
     }
 
