@@ -29,6 +29,7 @@ struct GardenView: View {
 
     @State var selectedFilter: GardenFilter = .all
     @State var selectedPlant: GardenPlant? = nil
+    @State var showingTimerSheet = false
 
     private let columns = [
         GridItem(.adaptive(minimum: 155), spacing: 12)
@@ -69,6 +70,9 @@ struct GardenView: View {
         }
         .sheet(item: $selectedPlant) { plant in
             PlantDetailSheet(plant: plant)
+        }
+        .sheet(isPresented: $showingTimerSheet) {
+            FocusTimerView()
         }
     }
 
@@ -138,16 +142,7 @@ struct GardenView: View {
     }
 
     private func startSessionFromGarden() {
-        if let task = pendingTasks.first {
-            services.startFocusSession(task)
-        } else {
-            services.addTask(title: "Deep Study Sprint", estimatedMinutes: 25)
-            #if !SKIP
-            if let newTask = try? modelContext.fetch(FetchDescriptor<FocusTask>()).first(where: { !$0.isCompleted }) {
-                services.startFocusSession(newTask)
-            }
-            #endif
-        }
+        showingTimerSheet = true
     }
 }
 

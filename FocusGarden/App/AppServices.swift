@@ -37,16 +37,12 @@ final class AppServices {
     let container: ModelContainer
     let clock: any Clock
     var configuration: AppConfiguration
-    let engine: AutoSchedulingEngine
-    let planner: StudyPlanner
-    var scheduleManager: ScheduleManager
     let icsParser: ICSParser
     let reminderService: StudyReminderService
 
     static let remindersEnabledKey = "remindersEnabled"
 
     var selectedDate: Date
-    var lastPlan: SchedulePlan?
     var activeSessionTaskID: UUID?
     var hasCompletedOnboarding: Bool = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
     var remindersEnabled: Bool = (UserDefaults.standard.object(forKey: "remindersEnabled") as? Bool) ?? false
@@ -62,9 +58,6 @@ final class AppServices {
         self.container = container
         self.clock = clock
         self.configuration = configuration
-        self.engine = AutoSchedulingEngine()
-        self.planner = StudyPlanner()
-        self.scheduleManager = ScheduleManager(engine: engine, planner: planner, configuration: configuration)
         self.icsParser = ICSParser(defaultTimeZone: configuration.timeZone)
         self.reminderService = StudyReminderService()
         self.selectedDate = clock.now
@@ -117,9 +110,7 @@ final class AppServices {
             }
 
             Task { await setupReminders() }
-        } catch {
-            lastPlan = nil
-        }
+        } catch {}
     }
 
     func bootstrap() async {
@@ -128,7 +119,6 @@ final class AppServices {
 
     func applyStudyPreferences(from state: AppStateRecord) {
         configuration.applyStudyPreferences(from: state)
-        scheduleManager.configuration = configuration
     }
 
     func setStudyWindow(start: Date, end: Date) {
@@ -193,7 +183,6 @@ final class AppServices {
         guard configuration.assessmentLeadWeeks != clamped else { return }
         configuration.assessmentLeadWeeks = clamped
         configuration.horizonDays = max(21, clamped * 7 + 14)
-        scheduleManager.configuration = configuration
         do {
             let state = try SwiftDataAppStateRepository(context: context).record()
             state.assessmentLeadWeeks = clamped
@@ -206,7 +195,6 @@ final class AppServices {
         let clamped = max(0, min(180, minutes))
         guard configuration.commuteMinutesAfterLastClass != clamped else { return }
         configuration.commuteMinutesAfterLastClass = clamped
-        scheduleManager.configuration = configuration
         do {
             let state = try SwiftDataAppStateRepository(context: context).record()
             state.commuteMinutesAfterLastClass = clamped
@@ -219,7 +207,6 @@ final class AppServices {
         let clamped = max(0, min(60, minutes))
         guard configuration.bufferMinutes != clamped else { return }
         configuration.bufferMinutes = clamped
-        scheduleManager.configuration = configuration
         do {
             let state = try SwiftDataAppStateRepository(context: context).record()
             state.breakMinutesBetweenSessions = clamped
@@ -245,7 +232,6 @@ final class AppServices {
     func setChronotype(_ chronotype: Chronotype) {
         guard configuration.chronotype != chronotype else { return }
         configuration.chronotype = chronotype
-        scheduleManager.configuration = configuration
         do {
             let state = try SwiftDataAppStateRepository(context: context).record()
             state.chronotype = chronotype
@@ -411,8 +397,6 @@ final class AppServices {
         configuration.windowEndMinute = endMinute
         configuration.allowBeforeFirstClass = allowBeforeFirstClass
         configuration.allowBetweenClasses = allowBetweenClasses
-        scheduleManager.configuration = configuration
-
         do {
             let state = try SwiftDataAppStateRepository(context: context).record()
             state.studyStartHour = startHour
@@ -425,8 +409,6 @@ final class AppServices {
         } catch {}
         regenerate()
     }
-
-    var isRegenerating = false
 
     func regenerate() {
         // Sprout does not automatically regenerate or rearrange schedules.
@@ -660,25 +642,26 @@ final class AppServices {
         }
     }
 
+    private func resetTimetableEntities() {
+        if let tasks = try? context.fetch(FetchDescriptor<FocusTask>()) { for t in tasks { context.delete(t) } }
+        if let assessments = try? context.fetch(FetchDescriptor<Assessment>()) { for a in assessments { context.delete(a) } }
+        if let blocks = try? context.fetch(FetchDescriptor<ClassBlock>()) { for b in blocks { context.delete(b) } }
+        if let courses = try? context.fetch(FetchDescriptor<Course>()) { for c in courses { context.delete(c) } }
+    }
+
     func resetTimetable() {
-        do {
-            try scheduleManager.resetAll(context: context)
-            lastPlan = nil
-            activeSessionTaskID = nil
-            try? context.save()
-            Task { await refreshReminders() }
-        } catch {}
+        resetTimetableEntities()
+        activeSessionTaskID = nil
+        try? context.save()
+        Task { await refreshReminders() }
     }
 
     func resetAll() {
-        do {
-            try scheduleManager.resetAll(context: context)
-            clearAllActivityLogs()
-            lastPlan = nil
-            activeSessionTaskID = nil
-            try? context.save()
-            Task { await refreshReminders() }
-        } catch {}
+        resetTimetableEntities()
+        clearAllActivityLogs()
+        activeSessionTaskID = nil
+        try? context.save()
+        Task { await refreshReminders() }
     }
 
     func markTaskDone(_ task: FocusTask) {
@@ -839,32 +822,6 @@ final class AppServices {
     func resumeFocusSession(_ task: FocusTask) {
         guard task.isInSession else { return }
         activeSessionTaskID = task.id
-    }
-
-    func rescheduleTask(_ task: FocusTask, to start: Date) {
-        guard !task.isCompleted else { return }
-        let existingMinutes: Int = {
-            if let scheduledStart = task.scheduledStart, let scheduledEnd = task.scheduledEnd, scheduledEnd > scheduledStart {
-                return Int(scheduledEnd.timeIntervalSince(scheduledStart) / 60)
-            }
-            if task.remainingMinutes > 0 { return task.remainingMinutes }
-            return task.estimatedMinutes
-        }()
-        let minutes = max(configuration.minChunkMinutes, existingMinutes)
-        let duration = TimeInterval(minutes * 60)
-        task.scheduledStart = start
-        task.scheduledEnd = start.addingTimeInterval(duration)
-        task.isSoftLocked = true
-        task.scheduleReason = "Pinned where you put it."
-        try? context.save()
-        regenerate()
-    }
-
-    func unlockTaskSchedule(_ task: FocusTask) {
-        guard !task.isCompleted else { return }
-        task.isSoftLocked = false
-        try? context.save()
-        regenerate()
     }
 
     func cancelAllReminders() {

@@ -62,22 +62,6 @@ struct RootView: View {
             }
         }
         .background(FGTheme.background.ignoresSafeArea())
-        .sheet(isPresented: sessionPresented) {
-            if let task = services.activeSessionTask {
-                FocusSessionView(task: task)
-            }
-        }
-    }
-
-    private var sessionPresented: Binding<Bool> {
-        Binding(
-            get: { services.activeSessionTaskID != nil },
-            set: { presented in
-                if !presented {
-                    services.endFocusSession(clearStart: false)
-                }
-            }
-        )
     }
 }
 
@@ -87,57 +71,74 @@ struct RootTabView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             TodayView()
-                .tabItem { Label("Today", systemImage: "sun.max.fill") }
+                .tabItem { Label("Sanctum", systemImage: "flame.fill") }
                 .tag(0)
             QuickLogView()
-                .tabItem { Label("Log", systemImage: "plus.circle.fill") }
+                .tabItem { Label("Record", systemImage: "plus.circle.fill") }
                 .tag(1)
             InsightsView()
-                .tabItem { Label("Productivity", systemImage: "chart.bar.fill") }
+                .tabItem { Label("Tome", systemImage: "chart.bar.xaxis") }
                 .tag(2)
             GardenView()
-                .tabItem { Label("Garden", systemImage: "leaf.fill") }
+                .tabItem { Label("Arboretum", systemImage: "sparkles") }
                 .tag(3)
         }
-        .tint(FGTheme.green)
+        .tint(FGTheme.stainedGlassViolet)
         .preferredColorScheme(ColorScheme.dark)
     }
 }
 
 struct LaunchView: View {
     var body: some View {
-        VStack(spacing: 22) {
+        VStack(spacing: 24) {
             Spacer()
             ZStack {
                 Circle()
-                    .fill(FGTheme.green.opacity(0.15))
-                    .frame(width: 120, height: 120)
-                    .blur(radius: 22)
+                    .fill(FGTheme.deepPurple.opacity(0.35))
+                    .frame(width: 140, height: 140)
+                    .blur(radius: 25)
 
-                Image(systemName: "leaf.fill")
-                    .font(.system(size: 54))
+                Circle()
+                    .stroke(
+                        AngularGradient(
+                            gradient: Gradient(colors: [
+                                FGTheme.stainedGlassViolet,
+                                FGTheme.stainedGlassRuby,
+                                FGTheme.stainedGlassSapphire,
+                                FGTheme.stainedGlassAmber,
+                                FGTheme.stainedGlassViolet
+                            ]),
+                            center: .center
+                        ),
+                        lineWidth: 3
+                    )
+                    .frame(width: 100, height: 100)
+
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 46))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [FGTheme.green, FGTheme.green.opacity(0.82)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                            colors: [FGTheme.stainedGlassAmber, FGTheme.stainedGlassViolet],
+                            startPoint: .top,
+                            endPoint: .bottom
                         )
                     )
-                    .shadow(color: FGTheme.green.opacity(0.35), radius: 14, x: 0, y: 4)
+                    .shadow(color: FGTheme.stainedGlassViolet.opacity(0.6), radius: 16, x: 0, y: 4)
             }
 
-            VStack(spacing: 6) {
-                Text("Sprout")
-                    .font(FGTheme.rounded(.title, weight: .bold))
-                    .foregroundStyle(.white)
+            VStack(spacing: 8) {
+                Text("SPROUT")
+                    .font(FGTheme.gothic(.title, weight: .bold))
+                    .foregroundStyle(FGTheme.stoneText)
+                    .tracking(2.0)
 
-                Text("Make space. Do the work. Grow.")
+                Text("Enter the quiet sanctum of contemplation")
                     .font(FGTheme.mono(.caption))
                     .foregroundStyle(FGTheme.muted)
             }
 
             ProgressView()
-                .tint(FGTheme.green)
+                .tint(FGTheme.stainedGlassViolet)
                 .scaleEffect(1.1)
             Spacer()
         }

@@ -107,25 +107,123 @@ struct TodayView: View {
         }
     }
 
-    // MARK: - Header
+    // MARK: - Contextual Gothic Header & Adaptive Vigil Banner
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(greetingText.uppercased())
-                .font(FGTheme.mono(.caption2, weight: .bold))
-                .foregroundStyle(FGTheme.green)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("NOCTURNAL VIGIL")
+                        .font(FGTheme.mono(.caption2, weight: .bold))
+                        .foregroundStyle(FGTheme.stainedGlassViolet)
+                        .tracking(1.5)
 
-            Text(dateText)
-                .font(FGTheme.rounded(.title2, weight: .bold))
-                .foregroundStyle(.white)
+                    Text(dateText)
+                        .font(FGTheme.gothic(.title2, weight: .bold))
+                        .foregroundStyle(FGTheme.stoneText)
+                }
+
+                Spacer()
+
+                // Contextual Stained Glass Hour Badge
+                HStack(spacing: 5) {
+                    Image(systemName: contextualVigil.icon)
+                        .font(.system(size: 11))
+                    Text(contextualVigil.title.uppercased())
+                        .font(FGTheme.mono(.caption2, weight: .bold))
+                }
+                .foregroundStyle(contextualVigil.accent)
+                .fgBadge(color: contextualVigil.accent, opacity: 0.22)
+            }
+
+            // Adaptive Contextual Banner
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(contextualVigil.accent.opacity(0.18))
+                        .frame(width: 38, height: 38)
+                    Image(systemName: contextualVigil.icon)
+                        .font(.system(size: 16))
+                        .foregroundStyle(contextualVigil.accent)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(contextualVigil.ritual)
+                        .font(FGTheme.gothic(.subheadline, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text(contextualVigil.guidance)
+                        .font(FGTheme.mono(.caption2))
+                        .foregroundStyle(FGTheme.muted)
+                }
+                Spacer()
+            }
+            .padding(12)
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(FGTheme.stoneSlabGradient)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(FGTheme.stainedGlassSheen(accent: contextualVigil.accent))
+                }
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [contextualVigil.accent.opacity(0.45), FGTheme.stoneBevel.opacity(0.6)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
         }
         .padding(.top, 4)
     }
 
-    private var greetingText: String {
+    private struct VigilContext {
+        let title: String
+        let ritual: String
+        let guidance: String
+        let icon: String
+        let accent: Color
+    }
+
+    private var contextualVigil: VigilContext {
         let hour = calendar.component(.hour, from: now)
-        if hour < 12 { return "Good morning" }
-        if hour < 17 { return "Good afternoon" }
-        return "Good evening"
+        switch hour {
+        case 5..<12:
+            return VigilContext(
+                title: "Dawn Matins",
+                ritual: "Morning Illumination",
+                guidance: "Fresh hours for analytical focus and difficult texts.",
+                icon: "sun.horizon.fill",
+                accent: FGTheme.stainedGlassAmber
+            )
+        case 12..<17:
+            return VigilContext(
+                title: "Solar Zenith",
+                ritual: "Midday Labors",
+                guidance: "Channel deep momentum into problem sets and projects.",
+                icon: "sun.max.fill",
+                accent: FGTheme.stainedGlassRuby
+            )
+        case 17..<22:
+            return VigilContext(
+                title: "Twilight Vespers",
+                ritual: "Evening Consolidation",
+                guidance: "Review core concepts and synthesize the day's notes.",
+                icon: "sunset.fill",
+                accent: FGTheme.stainedGlassViolet
+            )
+        default:
+            return VigilContext(
+                title: "Nocturnal Compline",
+                ritual: "Night Sanctum",
+                guidance: "Silent study. Guard your quiet hours of contemplation.",
+                icon: "moon.stars.fill",
+                accent: FGTheme.stainedGlassSapphire
+            )
+        }
     }
 
     private var dateText: String {
@@ -181,15 +279,16 @@ struct TodayView: View {
     private var realityCardsGrid: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("TODAY AT A GLANCE")
-                .font(FGTheme.mono(.caption2, weight: .bold))
+                .font(FGTheme.gothic(.caption, weight: .bold))
                 .foregroundStyle(FGTheme.muted)
+                .tracking(1.2)
 
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                realityCard(title: "Focused Work", minutes: focusedMinutes, icon: "brain.head.profile", color: FGTheme.green)
-                realityCard(title: "Independent", minutes: independentMinutes, icon: "person.fill", color: FGTheme.green.opacity(0.85))
-                realityCard(title: "AI-Assisted", minutes: aiAssistedMinutes, icon: "sparkles", color: FGTheme.amber)
-                realityCard(title: "Classes", minutes: classMinutes, icon: "graduationcap.fill", color: Color.cyan)
-                realityCard(title: "Exercise", minutes: exerciseMinutes, icon: "figure.run", color: Color.orange)
+                realityCard(title: "Focused Work", minutes: focusedMinutes, icon: "brain.head.profile", color: FGTheme.stainedGlassViolet)
+                realityCard(title: "Independent", minutes: independentMinutes, icon: "person.fill", color: FGTheme.stainedGlassSapphire)
+                realityCard(title: "AI-Assisted", minutes: aiAssistedMinutes, icon: "sparkles", color: FGTheme.stainedGlassAmber)
+                realityCard(title: "Classes", minutes: classMinutes, icon: "graduationcap.fill", color: FGTheme.stainedGlassEmerald)
+                realityCard(title: "Exercise", minutes: exerciseMinutes, icon: "figure.run", color: FGTheme.stainedGlassRuby)
                 realityCard(title: "Leisure & Rest", minutes: leisureMinutes, icon: "cup.and.saucer.fill", color: FGTheme.muted)
             }
         }
@@ -199,7 +298,7 @@ struct TodayView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: icon)
-                    .font(.system(size: 13))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(color)
                 Spacer()
                 Text(formatMinutes(minutes))
@@ -209,17 +308,34 @@ struct TodayView: View {
 
             Text(title)
                 .font(FGTheme.mono(.caption, weight: .medium))
-                .foregroundStyle(FGTheme.muted)
+                .foregroundStyle(FGTheme.stoneText.opacity(0.8))
         }
         .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(FGTheme.surface)
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(FGTheme.stoneSlabGradient)
+                if minutes > 0 {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(FGTheme.stainedGlassSheen(accent: color))
+                }
+            }
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(minutes > 0 ? color.opacity(0.3) : Color.clear, lineWidth: 1)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            minutes > 0 ? color.opacity(0.5) : FGTheme.stoneBevel.opacity(0.35),
+                            minutes > 0 ? color.opacity(0.2) : Color.clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.1
+                )
         )
+        .shadow(color: minutes > 0 ? color.opacity(0.18) : Color.black.opacity(0.25), radius: 8, x: 0, y: 3)
     }
 
     private func formatMinutes(_ total: Int) -> String {
@@ -414,43 +530,85 @@ struct TodayView: View {
 
     // MARK: - Action Buttons
     private var actionButtons: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             Button {
+                FGTheme.triggerHaptic()
                 showingLogSheet = true
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "plus.circle.fill")
                         .font(.headline)
-                    Text("LOG ACTIVITY")
+                    Text("LOG VIGIL ACTIVITY")
                         .font(FGTheme.mono(.headline, weight: .bold))
                 }
                 .foregroundStyle(FGTheme.ink)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 15)
-                .background(FGTheme.green)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .shadow(color: FGTheme.green.opacity(0.3), radius: 8, x: 0, y: 3)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    FGTheme.stainedGlassViolet,
+                                    FGTheme.stainedGlassViolet.opacity(0.85)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.4),
+                                    FGTheme.stoneBevel.opacity(0.5)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.2
+                        )
+                )
+                .shadow(color: FGTheme.stainedGlassViolet.opacity(0.35), radius: 10, x: 0, y: 4)
             }
+            .fgTactileButton(fill: true, accent: FGTheme.stainedGlassViolet, cornerRadius: 12)
 
             Button {
+                FGTheme.triggerHaptic()
                 showingTimerSheet = true
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "timer")
                         .font(.subheadline)
-                    Text("Optional Focus Timer")
+                    Text("Sanctum Focus Timer")
                         .font(FGTheme.mono(.subheadline, weight: .bold))
                 }
-                .foregroundStyle(FGTheme.green)
+                .foregroundStyle(FGTheme.stainedGlassViolet)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(FGTheme.surface)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(FGTheme.green.opacity(0.3), lineWidth: 1)
+                .padding(.vertical, 13)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(FGTheme.stoneSlabGradient)
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    FGTheme.stainedGlassViolet.opacity(0.45),
+                                    FGTheme.stoneBevel.opacity(0.5)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.1
+                        )
+                )
+                .shadow(color: Color.black.opacity(0.3), radius: 8, x: 0, y: 3)
             }
+            .fgTactileButton(fill: false, accent: FGTheme.stainedGlassViolet, cornerRadius: 12)
         }
         .padding(.top, 10)
     }

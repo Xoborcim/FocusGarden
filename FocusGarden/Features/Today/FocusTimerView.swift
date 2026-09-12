@@ -198,43 +198,100 @@ struct FocusTimerView: View {
         VStack(spacing: 32) {
             Spacer()
 
-            // Botanical Sprout Icon
+            // Stained Glass Rosace Timer Dial
             ZStack {
+                // Outer Carved Stone Ring
                 Circle()
-                    .fill(FGTheme.green.opacity(0.12))
-                    .frame(width: 140, height: 140)
+                    .stroke(
+                        LinearGradient(
+                            colors: [FGTheme.stoneBevel, FGTheme.stoneSurface],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 16
+                    )
+                    .frame(width: 220, height: 220)
+                    .shadow(color: Color.black.opacity(0.6), radius: 12, x: 0, y: 6)
 
-                Image(systemName: "leaf.fill")
-                    .font(.system(size: 52))
-                    .foregroundStyle(FGTheme.green)
+                // Stained Glass Cathedral Aura
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                FGTheme.stainedGlassViolet.opacity(isPaused ? 0.08 : 0.26),
+                                FGTheme.stainedGlassRuby.opacity(isPaused ? 0.04 : 0.12),
+                                Color.clear
+                            ],
+                            center: .center,
+                            startRadius: 20,
+                            endRadius: 100
+                        )
+                    )
+                    .frame(width: 200, height: 200)
+
+                // Stained Glass Rose Perimeter Tracery
+                Circle()
+                    .stroke(
+                        AngularGradient(
+                            gradient: Gradient(colors: [
+                                FGTheme.stainedGlassViolet,
+                                FGTheme.stainedGlassRuby,
+                                FGTheme.stainedGlassSapphire,
+                                FGTheme.stainedGlassAmber,
+                                FGTheme.stainedGlassViolet
+                            ]),
+                            center: .center
+                        ),
+                        lineWidth: 3.5
+                    )
+                    .frame(width: 200, height: 200)
+                    .shadow(color: FGTheme.stainedGlassViolet.opacity(isPaused ? 0.2 : 0.6), radius: 10)
+
+                VStack(spacing: 6) {
+                    Image(systemName: isPaused ? "pause.circle.fill" : "flame.fill")
+                        .font(.system(size: 32))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [FGTheme.stainedGlassAmber, FGTheme.stainedGlassRuby],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .shadow(color: FGTheme.stainedGlassAmber.opacity(0.5), radius: 8)
+
+                    Text(formattedTimerString)
+                        .font(.system(size: 42, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.white)
+
+                    Text("VIGIL IN PROGRESS")
+                        .font(FGTheme.mono(.caption2, weight: .bold))
+                        .foregroundStyle(FGTheme.muted)
+                        .tracking(1.4)
+                }
             }
+            .padding(.top, 16)
 
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 Text(title.isEmpty ? category.displayName : title)
-                    .font(FGTheme.mono(.title3, weight: .bold))
-                    .foregroundStyle(.white)
+                    .font(FGTheme.gothic(.title3, weight: .bold))
+                    .foregroundStyle(FGTheme.stoneText)
 
                 Text(category.displayName.uppercased())
-                    .font(FGTheme.mono(.caption, weight: .bold))
-                    .foregroundStyle(FGTheme.muted)
+                    .font(FGTheme.mono(.caption2, weight: .bold))
+                    .foregroundStyle(FGTheme.stainedGlassViolet)
+                    .fgBadge(color: FGTheme.stainedGlassViolet, opacity: 0.2)
             }
 
-            // Time Display
-            VStack(spacing: 4) {
-                Text(formattedTimerString)
-                    .font(.system(size: 58, weight: .light, design: .monospaced))
-                    .foregroundStyle(.white)
-
-                Text("Elapsed: \(elapsedSeconds / 60)m \(elapsedSeconds % 60)s")
-                    .font(FGTheme.mono(.caption))
-                    .foregroundStyle(FGTheme.muted)
-            }
+            Text("Elapsed: \(elapsedSeconds / 60)m \(elapsedSeconds % 60)s")
+                .font(FGTheme.mono(.caption))
+                .foregroundStyle(FGTheme.muted)
 
             Spacer()
 
-            // Timer Controls
+            // Stone & Stained Glass Controls
             HStack(spacing: 16) {
                 Button {
+                    FGTheme.triggerHaptic()
                     isPaused.toggle()
                 } label: {
                     HStack(spacing: 6) {
@@ -245,24 +302,42 @@ struct FocusTimerView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(FGTheme.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .background(FGTheme.stoneSlabGradient)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(FGTheme.stoneBevel, lineWidth: 1)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .fgTactileButton(fill: false, accent: FGTheme.stoneBevel, cornerRadius: 12)
 
                 Button {
+                    FGTheme.triggerHaptic()
                     finishTimer()
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "stop.fill")
-                        Text("Finish & Log")
+                        Image(systemName: "seal.fill")
+                        Text("Seal & Log")
                     }
                     .font(FGTheme.mono(.subheadline, weight: .bold))
                     .foregroundStyle(FGTheme.ink)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(FGTheme.green)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .background(
+                        LinearGradient(
+                            colors: [FGTheme.stainedGlassViolet, FGTheme.stainedGlassViolet.opacity(0.85)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .shadow(color: FGTheme.stainedGlassViolet.opacity(0.35), radius: 8, x: 0, y: 3)
                 }
+                .fgTactileButton(fill: true, accent: FGTheme.stainedGlassViolet, cornerRadius: 12)
             }
         }
     }
@@ -274,6 +349,7 @@ struct FocusTimerView: View {
     }
 
     private func startTimer() {
+        FGTheme.triggerHaptic()
         isRunning = true
         isPaused = false
         elapsedSeconds = 0
@@ -281,6 +357,7 @@ struct FocusTimerView: View {
     }
 
     private func finishTimer() {
+        FGTheme.triggerHaptic()
         isRunning = false
         showingLogCompletion = true
     }
