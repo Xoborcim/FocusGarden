@@ -156,6 +156,24 @@ final class AppServices {
                 activeSessionTaskID = active.id
             }
 
+            // Clear any obsolete scheduled task times from previous auto-scheduler versions
+            if let allTasks = try? context.fetch(FetchDescriptor<FocusTask>()) {
+                var didModify = false
+                for task in allTasks {
+                    if task.scheduledStart != nil || task.scheduledEnd != nil {
+                        task.scheduledStart = nil
+                        task.scheduledEnd = nil
+                        didModify = true
+                    }
+                }
+                if didModify {
+                    try? context.save()
+                }
+            }
+
+            // Unconditionally cancel all legacy scheduled notifications in the OS
+            reminderService.cancelAll()
+
             Task { await setupReminders() }
         } catch {}
     }
@@ -903,20 +921,10 @@ final class AppServices {
     }
 
     private func setupReminders() async {
-        guard remindersEnabled else {
-            reminderService.cancelAll()
-            return
-        }
-        _ = await reminderService.requestAuthorization()
-        await refreshReminders()
+        reminderService.cancelAll()
     }
 
     private func refreshReminders() async {
-        guard remindersEnabled else {
-            reminderService.cancelAll()
-            return
-        }
-        let tasks = (try? SwiftDataTaskRepository(context: context).all()) ?? []
-        await reminderService.refresh(tasks: tasks, now: clock.now)
+        reminderService.cancelAll()
     }
 }

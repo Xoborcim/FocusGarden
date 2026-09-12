@@ -13,3 +13,5 @@ xcuserdata/
 **/.idea/
 *.apk
 *.aab
+local.properties
+**/local.properties
